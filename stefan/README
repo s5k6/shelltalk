@@ -22,7 +22,7 @@ First part:
 
   * Command invocation,
 
-  * command line arguments,
+  * command line arguments, and globbing
 
   * and redirection to/from files.
 
@@ -49,23 +49,35 @@ Simple commands
 Types of commands (the first word)
 
     $ type echo
-    echo is a shell builtin
+    echo is a shell builtin           # a builtin
 
-    $ type firefox
-    firefox is /usr/bin/firefox
+    $ type xterm
+    xterm is /usr/bin/xterm           # a real program
+
+Builtin commands should behave almost as “real programs” do, but the
+functionality is implemented in the shell, and does usually not invoke
+a new process.
 
 
 Command line arguments
 ----------------------
+
+How are command line arguments passed to a program?
 
     $ e arg.c
 
     $ ./arg
 
     $ ./arg hello world
+    $ ./arg "hello world"
 
+Quoting:
 
-Experiments:
+    $ ./arg hel"lo wor"ld
+
+  * There's no concept like string literals!
+
+FIXME: more on that
 
   * Globbing: Who resolves `*.c`, and what about `shopt failglob`
 
@@ -78,8 +90,90 @@ Experiments:
   * Quoting: `\…`, `'…'`, `"…"`, `$'…'`
 
 
+Running a program
+=================
+
+Each process has an ID and a parent process (except for the root,
+PID 1).
+
+    $ echo $$         # PID of the shell  (but: see below)
+
+    $ e pid.c
+
+    $ ./pid
+    $ ./pid
+
+Both `pid`-processes have individual PIDs, and the shell's PID as
+PPID.
+
+
+Execute: Replace one program with another
+-----------------------------------------
+
+    $ man 2 execve
+    $ man 3 exec           # family of frontend functions
+
+    $ e exec.c
+
+    $ ./exec arg abc 123
+
+    $ ./exec pid
+
+So the program `exec`-process is actually the programm `pid`.  We
+cannot do anything in our program behind the `execve`, unless `execve`
+fails.  That's quite limiting.
+
+Note: The shell has an `exec` builtin, which replaces the shell with
+      another program.
+
+    $ type exec
+    $ help exec         # `help` works for every builtin command
+
+    $ echo $$
+    $ ./pid 10
+    $ exec ./pid 10
+
+Use this to your advantage: When the shell script's last job is to
+launch another program, use `exec` to get rid of the shell itself.
+
+
+Fork a child process
+--------------------
+
+    $ man 2 fork
+
+    $ e fork.c
+
+    $ fork.c
+
+Calling `fork` returns twice,
+
+  * once in the new child process with return value 0, and
+
+  * once in the original process, the parent, returning the child's
+    PID.
+
+
+Fork a child, then replace it
+-----------------------------
+
+    $ e background.c
+
+    $ /usr/bin/xterm
+    $ ./background /usr/bin/xterm
+
+    $ ./background pid
+
+  * PPID==1 indicates an orphan:  The parent process has died.
+
+  * wait for your child
+
+    $ man 2 wait
+    $ ./background pid sleep
+
+
 Redirection
------------
+===========
 
     $ ls *.c noSuchFile
 
@@ -91,6 +185,8 @@ Redirection
 
 What about `3>file3`?
 
+    $ man 1 strace
+
     $ strace ./arg   # observe mix of syscalls and output
 
     $ strace ./arg 2>strace.log       # yes, I know about `-o`
@@ -101,80 +197,34 @@ What about `3>file3`?
 
 Try to write to file descriptor 2:
 
-    $ e tofd.c
+    $ man 2 write
 
-    $ ./tofd
-    $ ./tofd >file1
-    $ ./tofd 2>file2
+    $ e write.c
 
-Edit `tofd.c` to write to file descriptor 5.  Then
+    $ ./write
+    $ ./write >file1
+    $ ./write 2>file2
 
-    $ ./tofd
-    $ ./tofd 5>file5
+Edit `write.c` to write to file descriptor 5.  Then
 
+    $ ./write
+    $ ./write 5>file5
+
+So somehow the file `file5` was opened for writing, and the file
+descriptor 5 was made available to the newly run program.
 
 How does the shell do that?
----------------------------
-
-  * how to open a file?  easy, see `openFile.c`
-
-  * how to run another program?  Two basic consepts:
-
-      - a program can replace itself with another program (`exec`)
-
-      - a program can duplicate itself (`fork`)
 
 
-Each process has an ID, and a parent process
---------------------------------------------
+Open a file by name
+-------------------
 
-    $ echo $$         # PID of the shell  (but: see below)
-    $ ./pid
-    $ ./pid
+    $ man 2 open
 
-Both `pid`-processes have individual PIDs, and the shell's PID as
-PPID.
+    $ e open.c
 
-
-Execute another program, cf. exec(3)
-------------------------------------
-
-    $ e exec.c
-
-    $ ./exec arg anton bert
-
-But we cannot do anything in our program behind the `execve`, unless
-`execve` fails.  That's quite limiting.
-
-Note: The shell has an `exec` builtin, which replaces itself with
-      another program.
-
-    $ echo $$
-    $ ./pid 10
-    $ exec ./pid 10
-
-
-Fork a child process, cf. fork(2)
----------------------------------
-
-    $ e fork.c
-    $ ./fork.c
-
-So `fork` returns twice, with 0 in the child, and the child's PID in
-the parent.
-
-
-Fork to survive an exec
------------------------
-
-    $ e background.c
-
-    $ ./background /usr/bin/xterm
-    $ ./background ./pid
-
-  * PPID==1 indicates an orphan:  The parent process has died.
-
-  * wait for your child
+    $ ./open
+    $ cat output
 
 
 Open file descriptors are shared on forking
@@ -182,41 +232,49 @@ Open file descriptors are shared on forking
 
     $ e sharedfd.c
 
-    $ ./sharedfd foo
-    $ cat foo
+    $ ./sharedfd
+    $ cat output
+
+Also: Demonstrate a race condition by repeating each write 100 times.
 
 
+Make sure a file is opened with FD 2
+------------------------------------
+
+We cannot do this, but:
+
+    $ man 2 dup2
+
+    $ e dup2.c
+
+    $ ./dup2
+    $ ./dup2 1>file1 2>file2
+    $ cat file1
+    $ cat file2
 
 
+Run program with redirection to file
+====================================
+
+    fork a child process
+    if child:
+        open output file
+        make 1 an alias for its file descriptor
+        replace yourself with the program to run
+
+Demo:
+
+    $ e redirect.c
+
+    $ ./redirect /usr/bin/ls -l arg.c mdlbrmft
+    parent stdout still working
+    /usr/bin/ls: cannot access 'mdlbrmft': No such file or directory
+
+    $ cat output
+    -rw------- 1 klinger klinger 154 Feb 17 17:29 arg.c
 
 
+______________________________________________________________________
+TODO
 
-
-
-Redirection examples:
-
-    $ strace ./arg hello 2>&1 1>/dev/null | less
-
-
-Command line arguments, high- and low-level printing
-----------------------------------------------------
-
-    $ e args.c
-
-Use to learn
-
-  * argument passing
-
-  * who does the globbing
-
-  * quoting
-
-  * strace -o log ./args hello  ⇒  `write` is used to write
-
-
-File descriptors, reading, wrinting
------------------------------------
-
-    $ e open.c
-
-Use to learn how to open a file descriptor for writing.
+based on this, explain order of redirections, and 2>&1

@@ -10,8 +10,8 @@ int main(int argc, char **argv) {
 
     warnx("PID %u, about to run %s", getpid(), argv[1]);
 
-    // cf. exec(3)
     execve(argv[1], argv + 1, environ);
+
     err(1, "execve"); // reaching here indicates an error.
 
     return 0;

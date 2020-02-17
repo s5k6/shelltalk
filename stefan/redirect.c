@@ -9,11 +9,11 @@ int main(int argc, char **argv) {
     if (argc < 2)
         errx(1, "Need command to run");
 
-    pid_t child = fork();
-    if (child < 0)
+    pid_t pid = fork();
+    if (pid < 0)
         err(1, "fork");
 
-    if (child == 0) {
+    if (pid == 0) {
 
         // open file to write to
         int fd = open("output", O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -29,8 +29,8 @@ int main(int argc, char **argv) {
         err(1, "execve");
     }
 
-    // child is >0 now
-    write(1, "parent stdout\n", 14);
+    // this is the parent process
+    write(1, "parent stdout still working\n", 28);
 
     return 0;
 }
