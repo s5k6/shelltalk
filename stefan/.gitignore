@@ -1,0 +1,13 @@
+arg
+background
+dup2
+exec
+fork
+openFile
+pid
+redirecStdout
+sharedfd
+tofd
+open
+redirect
+write

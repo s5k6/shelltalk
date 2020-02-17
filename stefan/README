@@ -1,0 +1,222 @@
+
+Shell Grammar
+=============
+
+   SimpleCommand ::= “a space separated sequence of words and
+                      redirections”
+
+   Pipeline ::= “a sequence of one or more commands, separated by `|`”
+
+   List ::= “A list is a sequence of one or more pipelines separated
+             by one of the operators `;`, `&`, `&&`, or `||`, or
+             newline.”
+
+
+First part:
+
+        cmd1 arg1 arg2 >redir1 | cmd2 <(cmd3 arg 3 | cmd4) 2>&1 >redir2
+        ^^^^^^^^^^^^^^^^^^^^^^
+                 |
+             we will first talk
+             about this part only
+
+  * Command invocation,
+
+  * command line arguments,
+
+  * and redirection to/from files.
+
+Future parts:
+
+  * pipelines
+
+  * subshells
+
+  * ...
+
+
+Simple commands
+===============
+
+    $ echo hello shell
+
+  * The shell splits your input into words.
+
+  * The first word specifies the command to be executed.
+
+  * The remaining words are passed as arguments to the invoked command.
+
+Types of commands (the first word)
+
+    $ type echo
+    echo is a shell builtin
+
+    $ type firefox
+    firefox is /usr/bin/firefox
+
+
+Command line arguments
+----------------------
+
+    $ e arg.c
+
+    $ ./arg
+
+    $ ./arg hello world
+
+
+Experiments:
+
+  * Globbing: Who resolves `*.c`, and what about `shopt failglob`
+
+        $ ./arg *.c
+        $ echo *.c
+        $ ls *.c
+        $ echo *.c noSuchFile
+        $ ls *.c noSuchFile
+
+  * Quoting: `\…`, `'…'`, `"…"`, `$'…'`
+
+
+Redirection
+-----------
+
+    $ ls *.c noSuchFile
+
+    $ ls *.c noSuchFile >file1    # ≡ `1>file1`
+    $ cat file1
+
+    $ ls *.c noSuchFile 2>file2
+    $ cat file2
+
+What about `3>file3`?
+
+    $ strace ./arg   # observe mix of syscalls and output
+
+    $ strace ./arg 2>strace.log       # yes, I know about `-o`
+
+    write(1, "     0: ./arg\n", 14)         = 14
+          ^
+          man 2 write
+
+Try to write to file descriptor 2:
+
+    $ e tofd.c
+
+    $ ./tofd
+    $ ./tofd >file1
+    $ ./tofd 2>file2
+
+Edit `tofd.c` to write to file descriptor 5.  Then
+
+    $ ./tofd
+    $ ./tofd 5>file5
+
+
+How does the shell do that?
+---------------------------
+
+  * how to open a file?  easy, see `openFile.c`
+
+  * how to run another program?  Two basic consepts:
+
+      - a program can replace itself with another program (`exec`)
+
+      - a program can duplicate itself (`fork`)
+
+
+Each process has an ID, and a parent process
+--------------------------------------------
+
+    $ echo $$         # PID of the shell  (but: see below)
+    $ ./pid
+    $ ./pid
+
+Both `pid`-processes have individual PIDs, and the shell's PID as
+PPID.
+
+
+Execute another program, cf. exec(3)
+------------------------------------
+
+    $ e exec.c
+
+    $ ./exec arg anton bert
+
+But we cannot do anything in our program behind the `execve`, unless
+`execve` fails.  That's quite limiting.
+
+Note: The shell has an `exec` builtin, which replaces itself with
+      another program.
+
+    $ echo $$
+    $ ./pid 10
+    $ exec ./pid 10
+
+
+Fork a child process, cf. fork(2)
+---------------------------------
+
+    $ e fork.c
+    $ ./fork.c
+
+So `fork` returns twice, with 0 in the child, and the child's PID in
+the parent.
+
+
+Fork to survive an exec
+-----------------------
+
+    $ e background.c
+
+    $ ./background /usr/bin/xterm
+    $ ./background ./pid
+
+  * PPID==1 indicates an orphan:  The parent process has died.
+
+  * wait for your child
+
+
+Open file descriptors are shared on forking
+-------------------------------------------
+
+    $ e sharedfd.c
+
+    $ ./sharedfd foo
+    $ cat foo
+
+
+
+
+
+
+
+
+
+Redirection examples:
+
+    $ strace ./arg hello 2>&1 1>/dev/null | less
+
+
+Command line arguments, high- and low-level printing
+----------------------------------------------------
+
+    $ e args.c
+
+Use to learn
+
+  * argument passing
+
+  * who does the globbing
+
+  * quoting
+
+  * strace -o log ./args hello  ⇒  `write` is used to write
+
+
+File descriptors, reading, wrinting
+-----------------------------------
+
+    $ e open.c
+
+Use to learn how to open a file descriptor for writing.

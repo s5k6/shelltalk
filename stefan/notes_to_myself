@@ -1,0 +1,19 @@
+
+FIXME's
+=======
+
+  * check `vpcc` arguments: missing mode argument of `open` not
+    recognized?
+
+  * make sure this maps nicely to markdown
+
+
+
+Session preparation
+===================
+
+  * make sure it's not an alias: ls
+
+  * shell config: set +C +u; shopt -u failglob
+
+  * `inotify . -- make`

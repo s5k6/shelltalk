@@ -1,0 +1,16 @@
+
+Abstract
+
+Linux Shell Programming may feel revolting.  If something like
+“ordinary programming” existed at all, then Shell Programming would
+not be it.  But why is it so awkward?
+
+As usual, understanding the mechanisms of a programming environment
+greatly improves one's confidence and problem solving skills.  To this
+end, one half of the course will explain how the Linux Shell does its
+thing, hoping to transform one's relationship with the shell from
+adversarial to sympathetic.
+
+
+Required: Very basic shell knowledge.  Superficial C (even reading
+          pseudocode would suffice)
