@@ -1,0 +1,12 @@
+pre code {
+    display: block;
+    border: 1px solid #e6e6e6;
+    background: #fffef7;
+    padding: 0.5ex;
+    margin: 1em 3em;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+h1 { margin: 2.5em 0 0.7em 0; }
+h2 { margin: 1.5em 0 0.7em 0; }

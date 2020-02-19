@@ -14,11 +14,11 @@ Shell Grammar
 
 First part:
 
-        cmd1 arg1 arg2 >redir1 | cmd2 <(cmd3 arg 3 | cmd4) 2>&1 >redir2
-        ^^^^^^^^^^^^^^^^^^^^^^
-                 |
-             we will first talk
-             about this part only
+    cmd1 arg1 arg2 >redir1 | cmd2 <(cmd3 2>redir2 | cmd4) 2>&1 >redir2
+    ^^^^^^^^^^^^^^^^^^^^^^
+             |
+         we will first talk
+        about this part only
 
   * Command invocation,
 
@@ -241,16 +241,72 @@ Also: Demonstrate a race condition by repeating each write 100 times.
 Make sure a file is opened with FD 2
 ------------------------------------
 
-We cannot do this, but:
+We cannot do this, but we can reassign an open file descriptor to
+another one:
 
     $ man 2 dup2
 
     $ e dup2.c
 
     $ ./dup2
-    $ ./dup2 1>file1 2>file2
+    $ cat output
+
+So the redirection `… n>file` involves two steps:
+
+    fd = open("file", …)
+    dup2(fd, n);
+
+
+Re-use a file-descriptor
+------------------------
+
+It is generally wrong to redirect stderr and stdout to the same file:
+
+    $ ls -l arg.c mdlbrmft >file1 2>file1
     $ cat file1
-    $ cat file2
+
+And we can explain why:
+
+    $ e conflict.c
+    $ ./conflict
+    $ cat output
+
+Correct:
+
+    $ ls -l arg.c mdlbrmft >file1 2>&1
+    $ cat file1
+
+
+So, if the shell sees a `2>&1`, it simply does a `dup2(1, 2)`.
+
+With this, we can understand why the order of redirections is
+significant.  The shell just parses and applies the redirections from
+left to right:
+
+    $ ls -l arg.c mdlbrmft >file1 2>&1
+    $ cat file1
+
+    // 1>file
+    fd = open("file1", …)  // `write(fd, …)` goes to `file1`
+    dup2(fd, 1)            // `write(1, …)` goes to where `write(fd, …)` goes
+
+    // 2>&1
+    dup2(1, 2)            // `write(2, …)` goes to where `write(1, …)` goes,
+                             which is now where `write(fd, …)` goes
+
+The other way round:
+
+    $ ls -l arg.c mdlbrmft 2>&1 >file1
+    $ cat file1
+
+    // 2>&1
+    dup2(1, 2)            // `write(2, …)` goes to where `write(1, …)` goes,
+                             which is stdout.
+
+    // 1>file
+    fd = open("file1", …)  // `write(fd, …)` goes to `file1`
+    dup2(fd, 1)            // `write(1, …)` goes to where `write(fd, …)` goes
+
 
 
 Run program with redirection to file
