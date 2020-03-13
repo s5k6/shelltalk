@@ -2,11 +2,13 @@
 FIXME's
 =======
 
+  * Maybe better to rename some programs to not conflict with the
+    system call they demonstrate.  May ease the discussion.
+
   * check `vpcc` arguments: missing mode argument of `open` not
     recognized?
 
   * make sure this maps nicely to markdown
-
 
   * Alternatives to `fork`+`exec`:
 
@@ -23,11 +25,18 @@ FIXME's
 Session preparation
 ===================
 
-  * make sure it's not an alias: ls
+  * shell config:
 
-  * shell config: set +C +u; shopt -u failglob
+        set +C +u
+        shopt -u failglob
+        export QUOTING_STYLE=literal
+
+  * either disable git-prompt, or do it outside a git repo
 
   * `inotify . -- make`
+
+  * touch 'hello world'
+
 
 
 Helpers

@@ -17,8 +17,8 @@ First part:
     cmd1 arg1 arg2 >redir1 | cmd2 <(cmd3 2>redir2 | cmd4) 2>&1 >redir2
     ^^^^^^^^^^^^^^^^^^^^^^
              |
-         we will first talk
-        about this part only
+             first we will only
+             talk about this part
 
   * Command invocation,
 
@@ -40,11 +40,11 @@ Simple commands
 
     $ echo hello shell
 
-  * The shell splits your input into words.
+  * The shell splits your input into words (⇒ what is a word?)
 
-  * The first word specifies the command to be executed.
+  * The first word specifies the command to be executed (⇒ what is a command?)
 
-  * The remaining words are passed as arguments to the invoked command.
+  * The remaining words are passed to the invoked command (⇒ how is it run?)
 
 Types of commands (the first word)
 
@@ -53,6 +53,9 @@ Types of commands (the first word)
 
     $ type xterm
     xterm is /usr/bin/xterm           # a real program
+
+    $ type l
+    l is aliased to `ls -l'           # a convenient abbreviation
 
 Builtin commands should behave almost as “real programs” do, but the
 functionality is implemented in the shell, and does usually not invoke
@@ -77,17 +80,18 @@ Quoting:
 
   * There's no concept like string literals!
 
-FIXME: more on that
+FIXME: more on that: strong and weak quoting
 
   * Globbing: Who resolves `*.c`, and what about `shopt failglob`
 
+        $ ls -l *.c
         $ ./arg *.c
         $ echo *.c
         $ ls *.c
         $ echo *.c noSuchFile
         $ ls *.c noSuchFile
 
-  * Quoting: `\…`, `'…'`, `"…"`, `$'…'`
+  * The seven kinds of expansion: bash(1) /^EXPANSION
 
 
 Running a program
@@ -96,15 +100,22 @@ Running a program
 Each process has an ID and a parent process (except for the root,
 PID 1).
 
-    $ echo $$         # PID of the shell  (but: see below)
+    $ man 1 ps
+    $ man 1 top
+
+    $ ps -e
+    $ ps -o pid,ppid,%mem,args -u "$USER"
+    $ ps -u "$USER" -H
+    $ top
+
+    $ echo $$                # PID of the shell  (but: see below)
 
     $ e pid.c
 
     $ ./pid
     $ ./pid
 
-Both `pid`-processes have individual PIDs, and the shell's PID as
-PPID.
+Both `pid`-processes have individual PIDs, and the shell's PID as PPID.
 
 
 Execute: Replace one program with another
@@ -119,9 +130,9 @@ Execute: Replace one program with another
 
     $ ./exec pid
 
-So the program `exec`-process is actually the programm `pid`.  We
-cannot do anything in our program behind the `execve`, unless `execve`
-fails.  That's quite limiting.
+So the program `exec`-process has actually *replaced* itself with the
+program `pid`.  We cannot do anything in our program behind the
+`execve`, unless `execve` fails.  That's quite limiting.
 
 Note: The shell has an `exec` builtin, which replaces the shell with
       another program.
@@ -334,3 +345,18 @@ ______________________________________________________________________
 TODO
 
 based on this, explain order of redirections, and 2>&1
+
+Subshells created by `… <(…)` or `$(…)`, compared to `{…}`, and not to
+be confused with creation of arrays `…=(…)`.
+
+Maybe explain read(2), and why/when C-c or C-d is used to end a
+program.  C-c makes the terminal (FIXME make clear to be vague about
+“terminal”) send a signal SIGINT to its child process, while C-d makes
+it flush stdin.  Write your own `cat`.
+
+
+Further Reading:
+
+  * bash(1)
+
+  * https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09
