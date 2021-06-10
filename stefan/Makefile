@@ -16,5 +16,5 @@ clean :
 % : %.c
 	$(vpcc) -o $@ $<
 
-index.html : README
-	pandoc -s -c style.css -o index.html -fmarkdown README 
+%.html : %.md
+	pandoc  -f markdown -t html -s -c style.css --number-sections -o $@ $<

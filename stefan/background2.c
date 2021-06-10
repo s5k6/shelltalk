@@ -32,5 +32,22 @@ int main(int argc, char **argv) {
     warnx("My child process has ID %u", pid);
 
 
+    /* Wait for a child to terminate.  Collect its PID and exit
+       status.
+    */
+    int status;
+    pid = wait(&status);
+    if (pid < 0)
+        err(1, "wait");
+
+
+    /* Analyse and print exit status.
+    */
+    if (WIFEXITED(status))
+        warnx("Child %u has returned %d", pid, WEXITSTATUS(status));
+    else
+        warnx("Other status change on %u", pid);
+
+
     return 0;
 }
