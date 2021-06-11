@@ -5,10 +5,12 @@ int main(void) {
 
     ssize_t n;
 
-    n = write(2, "play the kazoo\n", 15);
+    int fd = 5;
+
+    n = write(fd, "play the kazoo\n", 15);
 
     if (n < 0)
-        err(1, "write failed");
+      err(1, "write to file descriptor %i failed", fd);
 
     return 0;
 }

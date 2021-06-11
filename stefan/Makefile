@@ -16,5 +16,8 @@ clean :
 % : %.c
 	$(vpcc) -o $@ $<
 
+
+# -Vsecnumdepth=1 --number-sections
 %.html : %.md
-	pandoc  -f markdown -t html -s -c style.css --number-sections -o $@ $<
+	pandoc  -f markdown -t html -s -c media/style.css \
+	  -o $@ $<

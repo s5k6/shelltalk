@@ -5,6 +5,8 @@
 
 int main(void) {
 
+    warnx("Writing to file: output");
+
     int fd = open("output", O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0)
         err(1, "open");
@@ -20,6 +22,8 @@ int main(void) {
     else
         // parent process
         write(fd, "I am the parent\n", 16);
+
+    close(fd);
 
     return 0;
 }

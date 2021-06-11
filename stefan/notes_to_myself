@@ -10,16 +10,6 @@ FIXME's
 
   * make sure this maps nicely to markdown
 
-  * Alternatives to `fork`+`exec`:
-
-    `vfork`(2) may be slightly faster, but is much more difficult to
-    use.
-
-    `posix_spawn`(3) is similar to, but weaker than, a combination of
-    `fork` and `exec`.
-
-    `clone`(2) may be used to implement `fork`, it offers more control
-    over sharing of the execution context.
 
 
 Session preparation

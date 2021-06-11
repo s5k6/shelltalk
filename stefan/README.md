@@ -198,8 +198,8 @@ the program, or not:
     $ ./arg *.x
     argv[0] = ./arg        # no arguments are created
 
-Settings by `shopt` affect the shell for its lifetime.  Modify your
-`~/.bashrc` for the defaults you like.
+Settings by `shopt` persist until changed again, or termination of the
+shell.  Modify your `~/.bashrc` for the defaults you like.
 
   * In interactive shalls, I prefer to have `failglob` enabled by
     default: If the glob fails, I'd rather think about what to really
@@ -228,8 +228,8 @@ The shell's special **metacharacters** are space, tab, and
 The shell knows different quoting mechanisms:
 
   * An unquoted backslash `\` serves as the escape character, i.e., it
-  **preserves the following character** (unless it is a newline, which
-  is removed entirely):
+    **preserves the following character** (unless it is a newline, which
+    is removed entirely):
 
         $ ./arg hello\ world
         argv[0] = ./arg
@@ -298,15 +298,16 @@ The shell knows different quoting mechanisms:
 
 Confused?  There's a simple mental model to quoting on the shell:
 
-
-### Think "quoting toggles", not "string literal delimiters"
+**
+Think "quoting toggles", not "string literal delimiters"
+**
 
 In languages like Java, quotes delimit string literals, which are
 somewhat atomic entities for the compiler.  Not so in the shell.
 
-Think of `\`, `'` and `"` as **quoting toggles** that switch between
-unquoted, weakly quoted, and strongly quoted parsing modes, with `\`
-affecting only the following character.
+Think of `\`, `'` and `"` as **quoting toggles** that switch different
+quoting modes on and off, with `\` affecting only the following
+character.
 
 With that model in mind, the following, completey valid examples
 become easily understandable:
@@ -445,11 +446,12 @@ The first two lines are produced by the instance of `fork` that we've
 called (PID 96330).  The last line is printed by the new child (PID
 96331).
 
-> Historically, fork(2) was a system call.  Today it's a frontend to
-> clone(2) which gives more control over what parts of the execution
-> context should be shared between parent and child.  The line between
-> child process and thread is blurred on Linux.  Also, strace(1) will
-> report `clone`, not `fork`.
+> Historically, fork(2) was a system call.  Today it's most likely a
+> frontend to clone(2) which gives more control over what parts of the
+> execution context should be shared between parent and child.  The
+> line between child process and thread is blurred on Linux.  Also,
+> strace(1) will report `clone`, not `fork`.  See posix_spawn(3) and
+> vfork(2) for more alternatives.
 
 
 Fork a child, then replace it
@@ -494,144 +496,285 @@ established technique to fight zombies with a double fork.
 FIXME talk about subshells introduced by `(…)`
 
 
-______________________________________________________________________
-FIXME CONTINUE
+Standard streams
+================
+
+Each Unix process initially is connected to three data streams:
+
+  * Standard input (*stdin*) to read data.  This is used to get your
+    input, just like the shell does.
+
+  * Standard output (*stdout*) to write data.  This is where a program
+    prints its output, like ls does.
+
+  * Standard error (*stderr*) to write error messages.  Also shows up
+    in your terminal, interleaved with *stdout*.
+
+E.g., cat(1) copies *stdin* to *stdout* if no arguments are given.
+Pressing C-d (Ctrl+D, ^D) signals end of input.
+
+    $ cat
 
 
 Redirection
-===========
+-----------
 
-    $ ls *.c noSuchFile
+As example, the following command should print the listing of one
+file to *stdout*, and an error message to *stderr*:
 
-    $ ls *.c noSuchFile >file1    # ≡ `1>file1`
+    $ ls -l README.md noSuchFile
+    ls: cannot access 'noSuchFile': No such file or directory
+    -rw------- 1 klinger klinger 20609 Jun 11 09:34 README.md
+
+Use `1>` (or the shorthand `>`) to write *stdout* to a file:
+
+    $ ls -l README.md noSuchFile 1> file1
+    ls: cannot access 'noSuchFile': No such file or directory
     $ cat file1
+    -rw------- 1 klinger klinger 22k Jun 11 10:26 README.md
 
-    $ ls *.c noSuchFile 2>file2
+Use `2>` to write *stderr* to a file:
+
+    $ ls -l README.md noSuchFile 2> file2
+    -rw------- 1 klinger klinger 22k Jun 11 10:26 README.md
     $ cat file2
+    ls: cannot access 'noSuchFile': No such file or directory
 
-What about `3>file3`?
+Similarly, use `0<` (or the shorthand `<`) to read *stdin* from a
+file:
 
-    $ man 1 strace
+    $ cat 0< arg.c
+    …
 
-    $ strace ./arg   # observe mix of syscalls and output
+What about using `42>`?
 
-    $ strace ./arg 2>strace.log       # yes, I know about `-o`
+    $ ls -l README.md noSuchFile 42> file42
+    $ ls -l file42
 
-    write(1, "     0: ./arg\n", 14)         = 14
-          ^
-          man 2 write
+What do the numbers (0 for *stdin*, 1 for *stdout*, 2 for *stderr*, 42
+for whatever) mean?
 
-Try to write to file descriptor 2:
 
-    $ man 2 write
+### Open a file by name
 
-    $ e write.c
+> open(2) is just a frontend for openat(2), but I'll stick to writing
+> “open” for simplicity.
+
+Usually, one would open(2) a file, before reading or writing, see
+[open.c](open.c)
+
+    $ strace -e trace=%file,write ./open
+    …
+    openat(AT_FDCWD, "output", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    write(3, "Hello named file\n", 17)      = 17
+    …
+
+    $ cat output
+    Hello named file
+
+open(2) and similar system calls return a **file descriptor**, which
+is an **integer** indexing the *per process* table of *open file
+descriptions*, which can be observed in `/proc/${PID}/fd` and
+`/proc/${PID}/fdinfo`.
+
+Similar for reading, cat(1) opens the file passed as argument (yields
+file descriptor 3), which is then read from:
+
+    $ strace -e trace=%file,read cat arg.c
+    …
+    openat(AT_FDCWD, "arg.c", O_RDONLY)     = 3
+    read(3, "#include <stdio.h>\n\nint main(int"..., 131072) = 154
+    …
+
+
+### Access files without opening?
+
+Without an argument, cat(1) will not open a file, but instead read
+from file descriptor 0.  We redirect this from a file:
+
+    $ strace -e trace=%file,read cat 0< arg.c
+    …
+    read(0, "#include <stdio.h>\n\nint main(int"..., 131072) = 154
+    …
+
+This also works with write(2) in the other direction:
+[write.c](write.c) writes to a file descriptor without opening it:
 
     $ ./write
-    $ ./write >file1
-    $ ./write 2>file2
+    write: write to file descriptor 5 failed: Bad file descriptor
 
-Edit `write.c` to write to file descriptor 5.  Then
-
-    $ ./write
-    $ ./write 5>file5
+    $ ./write 5> file5
+    $ cat file5
+    play the kazoo
 
 So somehow the file `file5` was opened for writing, and the file
 descriptor 5 was made available to the newly run program.
 
-How does the shell do that?
+How does the shell do that?  We would need to
+
+  * control the file descriptor (0, 1, 2) returned by open(2), and
+
+  * communicate an open file descriptor to a child process.
 
 
-Open a file by name
--------------------
+### Open file descriptors are shared on fork(2)
 
-    $ man 2 open
-
-    $ e open.c
-
-    $ ./open
-    $ cat output
-
-
-Open file descriptors are shared on forking
--------------------------------------------
-
-    $ e sharedfd.c
+Example [sharedfd.c](sharedfd.c)
 
     $ ./sharedfd
+    sharedfd: Writing to file: output
     $ cat output
+    I am the parent
+    I am the child
 
-Also: Demonstrate a race condition by repeating each write 100 times.
+Note: Both processes share the write position in the file, which is
+part of the open file description.
+
+> Optional: Demonstrate a race condition by repeating each write 100
+> times.
 
 
-Make sure a file is opened with FD 2
-------------------------------------
+### Make sure a file is opened with file descriptor 2
 
-We cannot do this, but we can reassign an open file descriptor to
-another one:
-
-    $ man 2 dup2
-
-    $ e dup2.c
+We cannot do this, but we *can* reassign a file descriptor to another
+one, using dup2(2), [dup2.c](dup2.c):
 
     $ ./dup2
+    knock knock
+    dup2: open("output", ...) = FD 3
     $ cat output
-
-So the redirection `… n>file` involves two steps:
-
-    fd = open("file", …)
-    dup2(fd, n);
+    who's there
 
 
-Re-use a file-descriptor
-------------------------
+### Summary redirection to/from files works
+
+So redirection from/to files simply makes the shell open these files
+in read/write mode, and assigns the expected file descriptors.
+
+Use cat(1) redirecting *stdin* and *stdout* to copy a file:
+
+    $ cat < arg.c > foo
+    $ cmp arg.c foo
+
+Let's investigate:
+
+    $ strace -olog -f bash -c 'cat < arg.c > foo'
+
+An excerpt from the `log` file, 8102 and 8103 are the PIDs of the
+shell and its child:
+
+    …
+    8102  clone(…) = 8103
+    8102  wait4(-1,  <unfinished ...>
+    …
+
+The shell (PID 8102) has created a child (PID 8103) and waits for a
+status change with wait4(2).  The child is still running `bash`'s code
+and is now setting file descriptors:
+
+    …
+    8103  openat(AT_FDCWD, "arg.c", O_RDONLY) = 3
+    8103  dup2(3, 0)                        = 0
+    8103  close(3)                          = 0
+    …
+    8103  openat(AT_FDCWD, "foo", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    8103  dup2(3, 1)                        = 1
+    8103  close(3)                          = 0
+    …
+
+Then the child replaces itself with cat(1), which does the copying:
+
+    …
+    8103  execve("/usr/bin/cat", ["cat"], 0x564891b95220 /* 45 vars */) = 0
+    …
+    8103  read(0, "#include <stdio.h>\n\nint main(int"..., 131072) = 154
+    8103  write(1, "#include <stdio.h>\n\nint main(int"..., 154) = 154
+    8103  read(0, "", 131072)               = 0
+    …
+    8103  close(0)                          = 0
+    8103  close(1)                          = 0
+    8103  exit_group(0)                     = ?
+    …
+
+The shell collects the child's exit code.
+
+    …
+    8102  <... wait4 resumed> … WEXITSTATUS(s) == 0 …) = 8103
+
+
+Understanding this yields many more insights:
+
+
+Bring in the harvest
+--------------------
+
+### Do not open files twice
 
 It is generally wrong to redirect stderr and stdout to the same file:
 
-    $ ls -l arg.c mdlbrmft >file1 2>file1
-    $ cat file1
+    $ ls -l README.md /noSuchFile
+    ls: cannot access '/noSuchFile': No such file or directory
+    -rw------- 1 klinger klinger 25k Jun 11 12:46 README.md
 
-And we can explain why:
+    $ ls -l README.md /noSuchFile 1>file12 2>file12
+    $ cat file12
+    -rw------- 1 klinger klinger 25k Jun 11 12:46 README.md
+    ry
 
-    $ e conflict.c
-    $ ./conflict
-    $ cat output
+And we can explain why: Both redirections, `1>` and `2>` make the
+shell call open(2), so we'll have **two different** open file
+descriptions, not sharing a common file position for writing:
 
-Correct:
+    $ strace -olog -f bash -c 'ls -l README.md /noSuchFile 1>file12 2>file12'
+    $ grep file12 log
+    8571  openat(AT_FDCWD, "file12", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    8571  openat(AT_FDCWD, "file12", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
 
-    $ ls -l arg.c mdlbrmft >file1 2>&1
-    $ cat file1
+Instead, we'd like to reuse the file opened once for *stdout*, and
+duplicate its file descriptor to be used for *stderr*.
+
+This calls for dup2(2), and the shell provides Syntax for that:
+
+    $ ls -l README.md /noSuchFile 1>file12 2>&1
+
+where `2>&1` simply translates to `dup2(1, 2)`, or in words: “Redirect
+FD 2 to the same thing, where FD 1 i pointing now.”
 
 
-So, if the shell sees a `2>&1`, it simply does a `dup2(1, 2)`.
+### Order of redirections
 
 With this, we can understand why the order of redirections is
 significant.  The shell just parses and applies the redirections from
-left to right:
+left to right, starting from the assignment of *stdin* 0, *stdout* 1,
+*stderr* 2.
 
-    $ ls -l arg.c mdlbrmft >file1 2>&1
-    $ cat file1
+![[Key Competence in Computer Science, Winter
+ 2015](https://stefan-klinger.de/files/sq_15w.pdf), page
+ 113](media/sq_15w_113.png)
 
-    // 1>file
-    fd = open("file1", …)  // `write(fd, …)` goes to `file1`
-    dup2(fd, 1)            // `write(1, …)` goes to where `write(fd, …)` goes
+Compare
 
-    // 2>&1
-    dup2(1, 2)            // `write(2, …)` goes to where `write(1, …)` goes,
-                             which is now where `write(fd, …)` goes
+        $ ls README.md /noSuchFile 1>file12 2>&1
+        $ cat file12
+        ls: cannot access '/noSuchFile': No such file or directory
+        README.md
 
-The other way round:
+with
 
-    $ ls -l arg.c mdlbrmft 2>&1 >file1
-    $ cat file1
+        $ ls README.md /noSuchFile 2>&1 1>file12
+        ls: cannot access '/noSuchFile': No such file or directory
+        $ cat file12
+        README.md
 
-    // 2>&1
-    dup2(1, 2)            // `write(2, …)` goes to where `write(1, …)` goes,
-                             which is stdout.
+and think about the order of the system calls `open`, `close` and
+`dup2` involved.
 
-    // 1>file
-    fd = open("file1", …)  // `write(fd, …)` goes to `file1`
-    dup2(fd, 1)            // `write(1, …)` goes to where `write(fd, …)` goes
+
+
+
+____________________
+FIXME CONTINUE
+
 
 
 
@@ -658,6 +801,8 @@ Demo:
 
 ______________________________________________________________________
 TODO
+
+  * <> >> >| >&- &>
 
   * to $HOME or ${HOME}
 

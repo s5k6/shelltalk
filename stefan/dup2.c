@@ -13,9 +13,9 @@ int main(void) {
     if (fd < 0)
         err(1, "open");
 
-    warnx("open returned %d", fd);  // writes to stderr
+    warnx("open(\"output\", ...) = FD %d", fd);  // writes to stderr
 
-    // close stdout, and make 1 an alias of fd
+    // close original stdout, and make 1 an alias of fd
     if (dup2(fd, 1) < 0)
         err(1, "dup");
 
