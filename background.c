@@ -32,5 +32,7 @@ int main(int argc, char **argv) {
     warnx("My child process has ID %u", pid);
 
 
+    // sleep(1);  // maybe sleep to observe PPID reported by child
+
     return 0;
 }

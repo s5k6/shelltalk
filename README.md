@@ -344,9 +344,9 @@ How can one delete the empty files?
     $ rm *                 # nope
     $ rm hello world       # nope
 
-**Quoting** (in other contexts known as **escaping**) is a mechanism
-to give some text a different meaning.  In the shell context, it means
-reducing special characters to their **literal value**.
+**Quoting** (aka. **escaping**) is a mechanism to give some text a
+different meaning.  In the shell context, it means reducing special
+characters to their **literal value**.
 
 The shell's special **metacharacters** are space, tab, and
 
@@ -357,7 +357,8 @@ The shell's special **metacharacters** are space, tab, and
 > bugs you, disable history expansion with `set +H` in your
 > `~/.bashrc`.
 
-The shell knows different quoting mechanisms:
+
+### The shell knows different quoting mechanisms
 
   * An unquoted backslash `\` serves as the **escape character**,
     i.e., it preserves the following character (unless it is a
@@ -434,7 +435,7 @@ The shell knows different quoting mechanisms:
 Confused?  There's a simple mental model to quoting on the shell:
 
 
-### No “string literals” but “quoting toggles”
+### Not “string literals” but “quoting toggles”
 
 Think of backslash `\`, single quote `'` and double quote `"` as
 **quoting toggles** that switch different quoting modes on and off,
@@ -595,6 +596,9 @@ The shell provides an `exec` builtin:
 Use this to your advantage: When the shell script's last job is to
 launch another program, use `exec` to get rid of the shell itself.
 
+> Also, `exec` can modify the shell's own redirections and file
+> descriptors — we'll come back to that…
+
 
 Fork a child process
 --------------------
@@ -660,20 +664,28 @@ Without the ampersand `&`, the shell immediately issues one of the
 wait(2) system calls to wait for, and collect a child process' status
 change, see [wait.c](wait.c).
 
+    $ ./wait ./pid wait
+    wait: PID 2939
+    wait: My child process has ID 2940
+    pid: PID 2940, PPID 2939
+    wait: Child 2940 has returned 0
+
 > It is instructive to investigate the `log` file created by
 >
 >     $ strace -e trace=%process -olog -f bash -c 'sleep 3& date'
 >
-> The shell will not terminat right away, because it waits for its
-> children before termination.  But you'll see the date(1) printed
+> Note: The shell will not terminat right away, because it waits for
+> its children before termination.  But you'll see the date(1) printed
 > immediately, proving the sleep(1) to run in the background of the
 > shell.
 
+> Note: wait(2) may actually be a frontend to wait4(2), but I’ll stick
+> to writing “wait” for simplicity.
 
 
 If a child process dies, it becomes a **zombie** until…
 
-  * …its exit status is collected by the parent via wait(2), or
+  * …its exit status is collected by the parent via wait(2) & Co., or
 
   * …its parent dies and the zombie is adopted by `init` which
     implicitly performs the wait, a process called “reaping”, which is
@@ -681,8 +693,8 @@ If a child process dies, it becomes a **zombie** until…
     **sub-reapers**, see pid_namespaces(7).
 
 The OS must maintain the exit status of a child for retrieval by its
-parent.  Thus, under a long-living parent, zombies may amass and
-pollute the process table.
+parent (while the reaper don't care).  Thus, under a long-living
+parent, zombies may amass and pollute the process table.
 
 ⇒ Wait for your children lest they become zombies.
 
@@ -700,7 +712,7 @@ next prompt:
 
 FIXME talk about subshells introduced by `(…)`
 
-FIXME talk about `&`, `jobs` and `wait` shell builtin
+FIXME talk about `jobs` and `wait` shell builtins
 
 
 Standard streams
@@ -712,7 +724,7 @@ Each Unix process initially is connected to three data streams:
     input, just like the shell does.
 
   * Standard output (*stdout*) to write data.  This is where a program
-    prints its output, like ls does.
+    prints its output, like ls(1) does.
 
   * Standard error (*stderr*) to write error messages.  Also shows up
     in your terminal, interleaved with *stdout*.
@@ -721,6 +733,13 @@ E.g., cat(1) copies *stdin* to *stdout* if no arguments are given.
 Pressing C-d (Ctrl+D, ^D) signals end of input.
 
     $ cat
+    dog
+    dog
+
+> The fact that I/O appears line by line is a result of buffering in
+> the *line discipline* of terminal driver, just *slightly* out of
+> scope here… ;-)
+
 
 
 Redirection
@@ -761,8 +780,8 @@ Use `2>` to write *stderr* to a file:
 Similarly, use `0<` (or the shorthand `<`) to read *stdin* from a
 file:
 
-    $ cat 0< arg.c
-    …
+    $ cat 0< lorem.txt
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit
 
 What about using `42>`?
 
@@ -829,7 +848,7 @@ This also works with write(2) in the other direction:
 So somehow the file `file5` was opened for writing, and the file
 descriptor 5 was made available to the newly run program.
 
-How does the shell do that?  We would need to
+How does the shell do that?  We need to
 
   * control the file descriptor (0, 1, 2) returned by open(2), and
 
@@ -859,8 +878,9 @@ times.
 
 ### Make sure a file is opened with file descriptor 2
 
-We cannot do this, but we *can* reassign a file descriptor to another
-one, using dup2(2), [dup2.c](dup2.c):
+We cannot do this, but we *can* assign an open file descript**ion**
+(referenced by its file descript**or**) to another file
+descript**or**, using dup2(2), [dup2.c](dup2.c):
 
     $ ./dup2
     knock knock
@@ -877,11 +897,13 @@ in read/write mode, and assigns the expected file descriptors.
 Use cat(1) redirecting *stdin* and *stdout* to copy a file:
 
     $ cat < lorem.txt > foo
-    $ cmp lorem.txt foo
+    $ cat foo
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit
 
 Let's investigate:
 
-    $ strace -olog -f bash -c 'cat < lorem.txt > foo'
+    $ strace -olog -f -etrace=%process,openat,read,write,dup2,close \
+      bash -c 'cat < lorem.txt > foo'
 
 An excerpt from the `log` file, 35958 and 35959 are the PIDs of the
 shell and its child:
@@ -918,6 +940,8 @@ The shell collects the child's exit code.
     …
     35958 <... wait4 resumed>…, 0, NULL) = 35959
 
+* * *
+
 Understanding this yields many more insights:
 
 
@@ -939,7 +963,7 @@ It is generally wrong to redirect stderr and stdout to the same file:
 
 And we can explain why: Both redirections, `1>` and `2>` make the
 shell call open(2), so we'll have **two different** open file
-descriptions, not sharing a common file offset for writing:
+descript**ions**, not sharing a common file offset for writing:
 
     $ strace -olog -f bash -c 'ls -l README.md /noSuchFile 1>file12 2>file12'
     $ grep file12 log
@@ -954,7 +978,7 @@ This calls for dup2(2), and the shell provides Syntax for that:
     $ ls -l README.md /noSuchFile 1>file12 2>&1
 
 where `2>&1` simply translates to `dup2(1, 2)`, or in words: “Redirect
-FD 2 to the same thing, where FD 1 i pointing now.”
+FD 2 to where FD 1 is pointing now.”
 
 
 ### Order of redirections
@@ -991,10 +1015,20 @@ and think about the order of the system calls `open`, `close` and
     $ foo 3>&1 1>&2 2>&3
 
 
+Pipelines
+=========
+
+A **pipeline** is a sequence of one or more *commands* separated by
+the pipe `|` control operator.
+
+> Search bash(1) for “SHELL GRAMMA” to get the complete picture.
+
 ______________________________________________________________________
 TODO
 
-  * <> >> >| >&-
+  * <> >> >| shorthands
+
+  * closing file descriptors, or using exec for the shell's redirections
 
   * `$@`, `$*`, `( "$@" )`
 
