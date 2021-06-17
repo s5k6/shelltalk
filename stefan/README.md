@@ -25,9 +25,14 @@ should be clear from the context.
 
 In this text, we exlusively work as unprivileged user.
 
+> IMHO: One should stick to that convention when writing
+> documentation.  Many distributions and users define their own chic
+> prompt, leading to much variation without benefit for the reader.
+> In contrast, `$` and `#` form an established, simple code.
 
-Documentation
-=============
+
+Finding Documentation
+=====================
 
 The definitive source of information should be the manual pages
 installed on your system.  You should find them in sync with installed
@@ -35,6 +40,7 @@ software, compensating for the diffrent flavours, distributions and
 implementations of existing tools.
 
 ⇒ Rather use locally installed man-pages than the internet.
+
 
 Manual Pages
 ------------
@@ -52,8 +58,8 @@ Manual Pages
   * Many sections have an intro page, e.g. intro(1).
 
 Man-pages are organised in sections, and sometimes subsections.  A
-manual is referenced by the name of the too/function, followed by the
-section in parenthesis
+manual is referenced by the name of the tool / function, followed by
+the section in parenthesis
 
     bash(1)
 
@@ -69,10 +75,38 @@ specified, the first matching manual will be shown.
     $ man 3 printf
 
 
+The Info system
+---------------
+
+All Info documentation is arranged in a tree.  Use the cursor keys to
+move around, (Shift)+Tab to jump to the next (previous) hyperlink,
+Return to follow link, `p`/`n`/`u` to move to the previous/next/parent
+node in the document tree, `/` to search for a string, `q` to quit.
+
+Try
+
+    $ info bash
+
+Compare these two:
+
+    $ man 1 ls
+    $ info '(coreutils) ls invocation'
+
+you'll find a reference to the latter in section SEE ALSO at the very
+end of the former.
+
+> IMHO: Expect the man-page to provide all necessary information.  If
+> Info documentation exists, then it is probably more extensive and
+> worth visiting if you need more in-depth knowledge.  Expect all core
+> utilities to have very good Info documentation, try `info
+> coreutils`.
+
+
 The Bourne-Again Shell
 ----------------------
 
-This text is about the “GNU Bourne-Again Shell” `bash`.
+This text is about the “GNU Bourne-Again Shell” `bash`, which claims
+to be compatible to the POSIX standard shell sh(1).
 
 Thus, use bash(1) for reference.  It actually is a good read.
 
@@ -86,15 +120,18 @@ environment variable:
 Simple Commands
 ===============
 
+> Search bash(1) for “Simple Commands” to get the complete picture.
+
 The shell needs to interpret your input to find out what to do.  For
 simple commands, the procedure is:
 
  1. The shell splits your input into words (⇒ what is a word?).
 
- 2. The first word specifies the command to be executed (⇒ what is a command?).
+ 2. The first word specifies the command to be executed (⇒ what is a
+    command?).
 
- 3. The remaining words are passed as arguments to the invoked
-    command (⇒ how is it invoked?).
+ 3. The remaining words are passed as arguments to the invoked command
+    (⇒ how is it invoked?).
 
 Example:
 
@@ -104,10 +141,83 @@ The splitting into words can be quite tricky.  Avoid whitespace in
 file names!
 
 > In a beginner's course, this would be the place to introduce
-> commands like `ls`, `pwd`, `cd`, `mkdir`, `rmdir`, `nano`, `rm`,
-> `cp`, `mv`, `file`, `cat`, `less`.
+> commands like
+>
+>  * Looking and navigating around with `ls`, `pwd`, `cd`, `mkdir`,
+>    `rmdir`
+>
+>  * Investigating and editing files with `file`, `cat`, `less`,
+>    `nano`,
+>
+>  * Managing files with `cp`, `mv`, `rm`, `touch`
 
-FIXME: `type`, `help`, `man`
+
+Finding the command
+-------------------
+
+The shell **searches** for the command to execute:
+
+  * It the first word contains a **slash**, then it is assumed a path
+    to an executable file,
+
+  * otherwise, the shell looks into the following dictionaries, in
+    this order, trying to resolve the command name:
+
+      - an **alias** is a simple abbreviation for a single command
+
+      - a **function** may contain multiple commands, and be recursive,
+
+      - a **builtin** exposes a feature of the shell to the command line.
+
+  * if that's still not successful, search the directories in the
+    `PATH` environment variable for an executable file of that name.
+
+    > Note: The shell may cache the result of a path search.  So if
+    > you create a script to shadow an existing binary, be sure to
+    > make it found first, and use the `hash` builtin to enforce a new
+    > path search.
+
+For even more details, see bash(1), “command execution”.  Also, shell
+builtins, and defining aliases and functions, have their own sections
+in the manual.
+
+In some sense (will become clear later on), functions, builtins, and
+“real programs” do behave the same way.  We'll discuss some
+differences in this text.  The first is this one:
+
+
+### Finding documentation, again
+
+Use the `type` builtin to figure out how the shell interprets the
+command.  Examples:
+
+    $ type ls
+    ls is aliased to `ls $LS_OPTIONS'         # implicit recursion avoidance
+
+    $ type cd
+    cd is a shell builtin
+
+    $ type vi
+    vi is /usr/bin/vi
+
+Shell builtins are part of the shell, and documented in bash(1).  The
+`help` builtin provides a short overview:
+
+    $ help pwd
+    pwd: pwd [-LP]
+        Print the current working directory.  With the -P option, pwd prints
+        the physical directory, without any symbolic links; the -L option
+        makes pwd follow symbolic links.
+
+The available aliases and functions depend on the distribution and
+administrator used.  Try `declare -a` and `declare -f` to list them.
+Do not expect documentation.
+
+* * *
+
+Back to running simple commands: The Input has been split into words,
+i.e., into command and arguments, the command has been identified as
+an executable file.  How is it run?
 
 
 Looking at the C side of it
@@ -140,6 +250,9 @@ By convention, `argv[0]` should contain the filename of the program,
 but the binary executed is actually found using the first argument
 `pathname`.
 
+The third argument is “the environment”, more on that later (FIXME I
+hope).
+
 
 Globbing
 --------
@@ -150,7 +263,7 @@ referred to as **glob** (in contrast to a regular expression, which is
 another kind of pattern).
 
 The character `*` matches any sequence of characters, `?` Matches any single
-character, and `[`list`]` matches any single character in the list.
+character, and `[`*list*`]` matches any single character in the *list*.
 
     $ ls *.c
     arg.c         closedup.c  dup2.c  fork.c  pid.c       sharedfd.c
@@ -199,11 +312,11 @@ the program, or not:
     argv[0] = ./arg        # no arguments are created
 
 Settings by `shopt` persist until changed again, or termination of the
-shell.  Modify your `~/.bashrc` for the defaults you like.
+shell.
 
   * In interactive shalls, I prefer to have `failglob` enabled by
     default: If the glob fails, I'd rather think about what to really
-    pass to a program.
+    pass to a program.  Modify your `~/.bashrc` to taste.
 
   * In a shell script, it may very well be adequate to deviate from
     failing.  It really **depends on the program invoked**.  You can
@@ -217,19 +330,38 @@ If spaces separate words, and globs are expanded to file names, then
 how can one pass these **meta characters** as part of a command line
 argument?
 
+Now consider this:
+
+    $ ls -l
+    total 8
+    -rw------- 1 klinger klinger  0 Jun 14 16:54 *
+    -rw------- 1 klinger klinger 33 Jun 14 16:52 hello
+    -rw------- 1 klinger klinger  0 Jun 14 16:53 hello world
+    -rw------- 1 klinger klinger 33 Jun 14 16:52 world
+
+How can one delete the empty files?
+
+    $ rm *                 # nope
+    $ rm hello world       # nope
+
 **Quoting** (in other contexts known as **escaping**) is a mechanism
 to give some text a different meaning.  In the shell context, it means
 reducing special characters to their **literal value**.
 
 The shell's special **metacharacters** are space, tab, and
 
-    ! " # $ & ' ( ) * ; < > ? [ \ ] ` { | } ~
+    " # $ & ' ( ) * ; < > ? [ \ ] ` { | } ~
+
+> Note: If *history expansion* is enabled, then `!` is special as
+> well, but escaping it is inconsistent inside double quotes.  If this
+> bugs you, disable history expansion with `set +H` in your
+> `~/.bashrc`.
 
 The shell knows different quoting mechanisms:
 
-  * An unquoted backslash `\` serves as the escape character, i.e., it
-    **preserves the following character** (unless it is a newline, which
-    is removed entirely):
+  * An unquoted backslash `\` serves as the **escape character**,
+    i.e., it preserves the following character (unless it is a
+    newline, which is removed entirely):
 
         $ ./arg hello\ world
         argv[0] = ./arg
@@ -267,8 +399,7 @@ The shell knows different quoting mechanisms:
   * Double quotes `"·"` preserve the literal values of *most* of the
     enclosed characters.  That's why it's called **weak quoting**.
 
-    Exceptions are `"`, `$`, `‘`, and the now quoted `\`.  If *history
-    expansion* is enabled, `!` is special as well.
+    Exceptions are `"`, `$`, `‘`, and the *now quoted* `\`.
 
         $ ./arg "home is ${HOME}"
         argv[0] = ./arg
@@ -278,77 +409,116 @@ The shell knows different quoting mechanisms:
     `HOME`, but the spaces are literal and do not split the argument.
 
     The *quoted* backslash only quotes characters which are still
-    special (and removes a newline)
+    special in a weakly quoted context (plus, it removes a newline)
 
-        $ ./arg \' "\'" "\""
+        $ ./arg   \' \\   '\'   "\"" "\$x" "\\"   "\'"
         argv[0] = ./arg
-        argv[1] = '
-        argv[2] = \'
-        argv[3] = "
+        argv[1] = '        # escaped single quote
+        argv[2] = \        # escaped backslash
+        argv[3] = \        # strongly quoted backslash
+        argv[4] = "        # weakly quoted escaped double quote
+        argv[5] = $x       # weakly quoted escaped dollar and an x
+        argv[6] = \        # weakly quoted escaped backslash
+        argv[7] = \'       # weakly quoted backslash and a single quote
 
   * More exotic variations: Text of the form `$'…'` replaces
     `\`-escaped characters as known from ANSI C, e.g., `\n` and `\t`
     become newline and tab.  And `$"…"` is supposed to invoke
     translation according to the current locale.
 
-        $ ./arg $'foo\tbar\nqux'
+        $ ./arg $'foo\tbar\nqux\'tux'
         argv[0] = ./arg
         argv[1] = foo   bar
-        qux
+        qux'tux
 
 Confused?  There's a simple mental model to quoting on the shell:
 
-**
-Think "quoting toggles", not "string literal delimiters"
-**
+
+### No “string literals” but “quoting toggles”
+
+Think of backslash `\`, single quote `'` and double quote `"` as
+**quoting toggles** that switch different quoting modes on and off,
+with `\` affecting only the following character.
 
 In languages like Java, quotes delimit string literals, which are
 somewhat atomic entities for the compiler.  Not so in the shell.
 
-Think of `\`, `'` and `"` as **quoting toggles** that switch different
-quoting modes on and off, with `\` affecting only the following
-character.
+Think of the shell as parsing your input left-to-right, starinig in
+unquoted mode.  Then:
 
-With that model in mind, the following, completey valid examples
-become easily understandable:
+  * An unquoted…
 
-    $ ./arg hel'lo wor'ld
-    argv[0] = ./arg
-    argv[1] = hello world
+      - …backslash `\` quotes the next character, or deletes a
+        directly following newline,
 
-Above, the first `'` switches strong quoting on (protecting the
-space), the second one switches it off.
+      - …single quote `'` switches on strong quoting,
 
-A less contrived example:
+      - …double quote `"` switches on weak quoting.
 
-    $ x='I say "hello"'         # setting a shell variable
+  * A strongly quoted single quote `'` ends strong quoting.
 
-    $ ./arg '$x='"'$x'"
-    argv[0] = ./arg
-    argv[1] = $x='I say "hello"'
+  * A weakly quoted…
 
-Strong quoting prevents the first `$x` from being expanded.  Weak
-quoting allows the use of single quotes, and the second occurrence of
-`$x` to expand, but does not split the result into words at the
-spaces.
+      - …double quote `"` ends weak quoting.
+
+      - …backslash `\` removes any special meaning from a following
+        `"`, `$`, `‘`, or `\`.
+
+This simplifies writing a parser to a pretty straight forward state
+machine, and also allows to **switch quoting style** on the fly, as
+needed:
+
+  * Unusual, but proves the point: The first `'` switches strong
+    quoting on (protecting the space), the second one switches it off.
+
+        $ ./arg hel'lo wor'ld
+        argv[0] = ./arg
+        argv[1] = hello world
+
+  * A single quote with strongly quoted text:
+
+        $ ./arg 'it'\''s time'
+        argv[0] = ./arg
+        argv[1] = it's time
+
+  * An even less contrived example:
+
+        $ x='I say "hello"'         # setting a shell variable
+
+        $ ./arg '$x='"'$x'"
+        argv[0] = ./arg
+        argv[1] = $x='I say "hello"'
+
+    Strong quoting prevents the first `$x` from being expanded.  Weak
+    quoting allows the use of single quotes, and the second occurrence of
+    `$x` to expand, but does not split the result into words at the
+    spaces.
 
 > Note: If you want to **print** correctly quoted strings, i.e., have
 > the shell introduce quoting for further use, use `printf %q`, see
 > bash(1).
 
 
+The seven kinds of expansion
+----------------------------
+
+FIXME
+
+
 Running a program
 =================
 
-What's happening when the shell runs a program?  I'll need some basics
-for that, and thes apply to all program launches on Linux.
+What's happening when the shell runs a program?
+
+I'll need some basics for that, and these apply to all program
+launches on Linux.  ⇒ Well worth the time!
 
 
 Processes and their ID
 ----------------------
 
 Each process has a **Process ID**, and every process except `init`
-(PID=1) has a parent process.
+(PID=1) has one parent process.
 
 The tools ps(1) and top(1) can be used to inspect the process table.
 
@@ -368,27 +538,33 @@ The shell provides variables to inspect its PID (`$$`) and its parents
 PID (`$PPID`).  But be careful, `$$` may lie to you, see below.
 
     $ echo "PID $$, PPID $PPID"
-    PID 95362, PPID 95357
+    PID 10566, PPID 10561
+    $ echo "PID $$, PPID $PPID"
+    PID 10566, PPID 10561          # same result, `echo` is a shell builtin
 
 A program can inspect its own and its parent's PID using the system
 calls getpid(2) and getppid(2), see [pid.c](pid.c).
 
     $ ./pid
+    pid: PID 11788, PPID 10566
     $ ./pid
+    pid: PID 11790, PPID 10566     # new invocation, new process, new PID
 
-Both `pid`-processes have individual PIDs, and the shell's PID as PPID.
+The two invocations of `pid` return different PIDs, coming from
+separately created processes running (instances of) the same program.
+They have the shell's PID as PPID.
 
 
 Execute: Replace one program with another
 -----------------------------------------
 
-This may come as a surprise: If you execute a program, then **by
-replacing an existing program**.
+If you execute a program, then **by replacing the running program** —
+which may sound odd.
 
-The execve(2) system call (observed above) does not return on success.
-It replaces the calling program by a new one.  Some of the execution
-context will be modified during that process, some will be left
-unchanged.
+The execve(2) system call (also observed above) **does not return** on
+success.  It replaces the calling program by a new one.  Some of the
+execution context will be modified during that process, some will be
+left unchanged.  Details in the manual.
 
 > Note: When programming C, there's a bunch of frontends to execve(2),
 > summarised in exec(3).
@@ -429,22 +605,23 @@ multiple programs?
 The fork(2) system call duplicates a process, the new one being the
 child of the caller.
 
-Opposed to exeve(2), **fork(2) returns twice**, once in the parent
-(returning the child's PID), once in the child (returning 0).
+In contrast to exeve(2), **fork(2) returns twice** on success, once in
+the parent (returning the child's PID), once in the child (returning
+0).
 
 Example [fork.c](fork.c):
 
     $ echo $$
-    96291
+    10566
 
     $ ./fork
-    fork: before, PID 96330, PPID 96291
-    fork: after,  PID 96330, PPID 96291, pid 96331
-    fork: after,  PID 96331, PPID 96330, pid 0
+    fork: before, PID 12133, PPID 10566
+    fork: after,  PID 12133, PPID 10566, fork() returned 12134
+    fork: after,  PID 12134, PPID 12133, fork() returned 0
 
 The first two lines are produced by the instance of `fork` that we've
-called (PID 96330).  The last line is printed by the new child (PID
-96331).
+called (PID 12133).  The last line is printed by the new child (PID
+12134).
 
 > Historically, fork(2) was a system call.  Today it's most likely a
 > frontend to clone(2) which gives more control over what parts of the
@@ -468,32 +645,62 @@ Example [background.c](background.c):
     background: My child process has ID 96932
     pid: PID 96932, PPID 1
 
-If `background` terminates before `pid`, then `pid` becomes an orphan,
-and is adopted by (reparented to) the `init` process, i.e., the one
-with PID 1.
+If `background` terminates before `pid`, then `pid` becomes an
+**orphan**, and is adopted by (i.e., reparented to) the `init`
+process, i.e., the one with PID 1.
 
 
-Further remarks
----------------
+### What the shell does
 
-You can (and a shell typically does) wait(2) for a child process, see
-[background2.c](background2.c).  If a child process dies, it becomes a
-zombie until
+Well precisely that, if you run a command terminated by the
+ampersand `&` **control operator** instead of a semicolon `;` — the
+latter of which may frequently be omitted.
 
-  * its exit status is collected by the parent via wait(2), or
+Without the ampersand `&`, the shell immediately issues one of the
+wait(2) system calls to wait for, and collect a child process' status
+change, see [wait.c](wait.c).
 
-  * its parent dies and the zombie is adopted by `init` which
+> It is instructive to investigate the `log` file created by
+>
+>     $ strace -e trace=%process -olog -f bash -c 'sleep 3& date'
+>
+> The shell will not terminat right away, because it waits for its
+> children before termination.  But you'll see the date(1) printed
+> immediately, proving the sleep(1) to run in the background of the
+> shell.
+
+
+
+If a child process dies, it becomes a **zombie** until…
+
+  * …its exit status is collected by the parent via wait(2), or
+
+  * …its parent dies and the zombie is adopted by `init` which
     implicitly performs the wait, a process called “reaping”, which is
-    why `init` is also referred to as “reaper”.  There may be
-    “subreapers”, see pid_namespaces(7).
+    why `init` is also referred to as **reaper**.  There may be
+    **sub-reapers**, see pid_namespaces(7).
 
-Wait for your children lest they become zombies.
+The OS must maintain the exit status of a child for retrieval by its
+parent.  Thus, under a long-living parent, zombies may amass and
+pollute the process table.
 
-Under a long-living parent, zombies may amass and pollute the process
-table (each consuming a PID that cannot be reused).  It was an
-established technique to fight zombies with a double fork.
+⇒ Wait for your children lest they become zombies.
+
+It was an established technique to fight zombies with a double fork.
+Alternatively, explicitly ignore SIGCHLD.  The shell reacts to SIGCHLD
+to reap zombies as soon as possible, and reports before printing the
+next prompt:
+
+    $ sleep 1 &
+    $                 # wait more than 1 second, then hit Return
+    [1]+  Done                    sleep 1
+    $
+
+
 
 FIXME talk about subshells introduced by `(…)`
+
+FIXME talk about `&`, `jobs` and `wait` shell builtin
 
 
 Standard streams
@@ -522,21 +729,32 @@ Redirection
 As example, the following command should print the listing of one
 file to *stdout*, and an error message to *stderr*:
 
-    $ ls -l README.md noSuchFile
+    $ ls README.md noSuchFile
     ls: cannot access 'noSuchFile': No such file or directory
-    -rw------- 1 klinger klinger 20609 Jun 11 09:34 README.md
+    README.md
 
 Use `1>` (or the shorthand `>`) to write *stdout* to a file:
 
-    $ ls -l README.md noSuchFile 1> file1
+    $ ls README.md noSuchFile 1> file1
     ls: cannot access 'noSuchFile': No such file or directory
+
     $ cat file1
-    -rw------- 1 klinger klinger 22k Jun 11 10:26 README.md
+    README.md
+
+**Note:** Redirection syntax does not appear as argument to the
+invoked command:
+
+    $ ./arg hello 1> file1 world
+    $ cat file1
+    argv[0] = ./arg
+    argv[1] = hello
+    argv[2] = world
 
 Use `2>` to write *stderr* to a file:
 
-    $ ls -l README.md noSuchFile 2> file2
-    -rw------- 1 klinger klinger 22k Jun 11 10:26 README.md
+    $ ls README.md noSuchFile 2> file2
+    README.md
+
     $ cat file2
     ls: cannot access 'noSuchFile': No such file or directory
 
@@ -548,7 +766,7 @@ file:
 
 What about using `42>`?
 
-    $ ls -l README.md noSuchFile 42> file42
+    $ ls README.md noSuchFile 42> file42
     $ ls -l file42
 
 What do the numbers (0 for *stdin*, 1 for *stdout*, 2 for *stderr*, 42
@@ -557,8 +775,8 @@ for whatever) mean?
 
 ### Open a file by name
 
-> open(2) is just a frontend for openat(2), but I'll stick to writing
-> “open” for simplicity.
+> open(2) may actually use openat(2), but I'll stick to writing “open”
+> for simplicity.
 
 Usually, one would open(2) a file, before reading or writing, see
 [open.c](open.c)
@@ -580,10 +798,11 @@ descriptions*, which can be observed in `/proc/${PID}/fd` and
 Similar for reading, cat(1) opens the file passed as argument (yields
 file descriptor 3), which is then read from:
 
-    $ strace -e trace=%file,read cat arg.c
+    $ strace -e trace=%file,read cat lorem.txt
     …
-    openat(AT_FDCWD, "arg.c", O_RDONLY)     = 3
-    read(3, "#include <stdio.h>\n\nint main(int"..., 131072) = 154
+    openat(AT_FDCWD, "lorem.txt", O_RDONLY) = 3
+    read(3, "Lorem ipsum dolor sit amet, cons"..., 131072) = 56
+    read(3, "", 131072)                     = 0
     …
 
 
@@ -592,9 +811,9 @@ file descriptor 3), which is then read from:
 Without an argument, cat(1) will not open a file, but instead read
 from file descriptor 0.  We redirect this from a file:
 
-    $ strace -e trace=%file,read cat 0< arg.c
+    $ strace -e trace=%file,read cat 0< lorem.txt
     …
-    read(0, "#include <stdio.h>\n\nint main(int"..., 131072) = 154
+    read(0, "Lorem ipsum dolor sit amet, cons"..., 131072) = 56
     …
 
 This also works with write(2) in the other direction:
@@ -627,11 +846,15 @@ Example [sharedfd.c](sharedfd.c)
     I am the parent
     I am the child
 
-Note: Both processes share the write position in the file, which is
-part of the open file description.
+Note: Both processes share the write offset in the file, which is part
+of the open file description.
 
-> Optional: Demonstrate a race condition by repeating each write 100
-> times.
+Optional: Demonstrate a race condition by repeating each write 100
+times.
+
+
+> Historical note: This was not the case in Linux before 3.14, see the
+> “Bugs” sections in read(2) and write(2).
 
 
 ### Make sure a file is opened with file descriptor 2
@@ -653,54 +876,47 @@ in read/write mode, and assigns the expected file descriptors.
 
 Use cat(1) redirecting *stdin* and *stdout* to copy a file:
 
-    $ cat < arg.c > foo
-    $ cmp arg.c foo
+    $ cat < lorem.txt > foo
+    $ cmp lorem.txt foo
 
 Let's investigate:
 
-    $ strace -olog -f bash -c 'cat < arg.c > foo'
+    $ strace -olog -f bash -c 'cat < lorem.txt > foo'
 
-An excerpt from the `log` file, 8102 and 8103 are the PIDs of the
+An excerpt from the `log` file, 35958 and 35959 are the PIDs of the
 shell and its child:
 
     …
-    8102  clone(…) = 8103
-    8102  wait4(-1,  <unfinished ...>
+    35958 clone(…) = 35959
+    35958 wait4(-1,  <unfinished ...>
     …
 
-The shell (PID 8102) has created a child (PID 8103) and waits for a
+The shell (PID 35958) has created a child (PID 35959) and waits for a
 status change with wait4(2).  The child is still running `bash`'s code
 and is now setting file descriptors:
 
     …
-    8103  openat(AT_FDCWD, "arg.c", O_RDONLY) = 3
-    8103  dup2(3, 0)                        = 0
-    8103  close(3)                          = 0
-    …
-    8103  openat(AT_FDCWD, "foo", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
-    8103  dup2(3, 1)                        = 1
-    8103  close(3)                          = 0
+    35959 openat(AT_FDCWD, "lorem.txt", O_RDONLY) = 3
+    35959 dup2(3, 0)                        = 0
+    35959 close(3)                          = 0
+    35959 openat(AT_FDCWD, "foo", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    35959 dup2(3, 1)                        = 1
+    35959 close(3)                          = 0
     …
 
 Then the child replaces itself with cat(1), which does the copying:
 
+    35959 execve("/usr/bin/cat", ["cat"], 0x558ca29a6220 /* 45 vars */) = 0
     …
-    8103  execve("/usr/bin/cat", ["cat"], 0x564891b95220 /* 45 vars */) = 0
-    …
-    8103  read(0, "#include <stdio.h>\n\nint main(int"..., 131072) = 154
-    8103  write(1, "#include <stdio.h>\n\nint main(int"..., 154) = 154
-    8103  read(0, "", 131072)               = 0
-    …
-    8103  close(0)                          = 0
-    8103  close(1)                          = 0
-    8103  exit_group(0)                     = ?
+    35959 read(0, "Lorem ipsum dolor sit amet, cons"..., 131072) = 56
+    35959 write(1, "Lorem ipsum dolor sit amet, cons"..., 56) = 56
+    35959 read(0, "", 131072)               = 0
     …
 
 The shell collects the child's exit code.
 
     …
-    8102  <... wait4 resumed> … WEXITSTATUS(s) == 0 …) = 8103
-
+    35958 <... wait4 resumed>…, 0, NULL) = 35959
 
 Understanding this yields many more insights:
 
@@ -723,7 +939,7 @@ It is generally wrong to redirect stderr and stdout to the same file:
 
 And we can explain why: Both redirections, `1>` and `2>` make the
 shell call open(2), so we'll have **two different** open file
-descriptions, not sharing a common file position for writing:
+descriptions, not sharing a common file offset for writing:
 
     $ strace -olog -f bash -c 'ls -l README.md /noSuchFile 1>file12 2>file12'
     $ grep file12 log
@@ -754,61 +970,39 @@ left to right, starting from the assignment of *stdin* 0, *stdout* 1,
 
 Compare
 
-        $ ls README.md /noSuchFile 1>file12 2>&1
-        $ cat file12
-        ls: cannot access '/noSuchFile': No such file or directory
-        README.md
+    $ ls README.md /noSuchFile 1>file12 2>&1
+    $ cat file12
+    ls: cannot access '/noSuchFile': No such file or directory
+    README.md
 
 with
 
-        $ ls README.md /noSuchFile 2>&1 1>file12
-        ls: cannot access '/noSuchFile': No such file or directory
-        $ cat file12
-        README.md
+    $ ls README.md /noSuchFile 2>&1 1>file12
+    ls: cannot access '/noSuchFile': No such file or directory
+    $ cat file12
+    README.md
 
 and think about the order of the system calls `open`, `close` and
 `dup2` involved.
 
 
+### Swapping *stdout* and *stderr*
 
-
-____________________
-FIXME CONTINUE
-
-
-
-
-Run program with redirection to file
-====================================
-
-    fork a child process
-    if child:
-        open output file
-        make 1 an alias for its file descriptor
-        replace yourself with the program to run
-
-Demo:
-
-    $ e redirect.c
-
-    $ ./redirect /usr/bin/ls -l arg.c mdlbrmft
-    parent stdout still working
-    /usr/bin/ls: cannot access 'mdlbrmft': No such file or directory
-
-    $ cat output
-    -rw------- 1 klinger klinger 154 Feb 17 17:29 arg.c
+    $ foo 3>&1 1>&2 2>&3
 
 
 ______________________________________________________________________
 TODO
 
-  * <> >> >| >&- &>
+  * <> >> >| >&-
+
+  * `$@`, `$*`, `( "$@" )`
 
   * to $HOME or ${HOME}
 
   * bad:  path='/foo/bar/'; file="${path}qux"
 
-  * explain order of redirections, and 2>&1
+  * `namei`, `tee`, `xargs`
 
   * Subshells created by `… <(…)` or `$(…)`, compared to `{…}`, and
     not to be confused with creation of arrays `…=(…)`.

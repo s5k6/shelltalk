@@ -1,0 +1,21 @@
+# source this file do remove your extravaganza from the current shell
+
+pushd "$(git rev-parse --show-toplevel)/stefan" >/dev/null
+
+set +C +u
+shopt -u failglob nullglob
+export QUOTING_STYLE=literal
+unset PROMPT_COMMAND
+unalias ls ps 2>/dev/null
+
+#PS1='$ '
+#PS2=''
+
+mkdir -p demo
+pushd demo >/dev/null
+touch \* 'hello world'
+date >| hello
+date >| world
+popd >/dev/null
+
+popd >/dev/null

@@ -20,6 +20,9 @@ Session preparation
         set +C +u
         shopt -u failglob
         export QUOTING_STYLE=literal
+        unset PROMPT_COMMAND
+        unalias ls ps
+
 
   * either disable git-prompt, or do it outside a git repo
 

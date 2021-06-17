@@ -29,13 +29,17 @@ img {
 h1 {
     margin-top: 1.5em;
     margin-bottom: 0em;
+    text-decoration-line: underline;
+    text-decoration-style: double;
 }
 h2 {
-    margin-top: 1.3em;
+    margin-top: 1.5em;
     margin-bottom: 0em;
+    text-decoration-line: underline;
+    text-decoration-style: single;
 }
 h3 {
-    margin-top: 1.3em;
+    margin-top: 1.5em;
     margin-bottom: 0em;
 }
 table {
@@ -47,8 +51,18 @@ th, td {
     padding: 0.3ex 0.5ex;
 }
 blockquote {
-    margin-left: 0em;
-    padding-left: 1ex;
+    margin: 1em 0em;
+    padding: 0.5ex;
     border-left: 0.5ex solid #d0d0d0;
+    background: #f8f8f8;
     color: #505050;
+}
+blockquote p {
+    margin: 0.5ex;
+}
+hr {
+    margin: 3em 20%;
+    border: none;
+    height: 0.15ex;
+    background-image: linear-gradient(to right, #fff, #505050, #fff);
 }

@@ -17,7 +17,8 @@ int main(void) {
 
     /* Note: There are two processes now, executing this code.
     */
-    warnx("after,  PID %u, PPID %u, pid %u", getpid(), getppid(), pid);
+    warnx("after,  PID %u, PPID %u, fork() returned %u",
+          getpid(), getppid(), pid);
 
 
     return 0;

@@ -18,7 +18,8 @@ output
 conflict
 closedup
 README.html
-background2
+wait
 file*
 foo
 log
+demo/
