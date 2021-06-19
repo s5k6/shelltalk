@@ -15,18 +15,14 @@ FIXME's
 Session preparation
 ===================
 
-  * shell config:
+  * demo shell config:
 
-        set +C +u
-        shopt -u failglob
-        export QUOTING_STYLE=literal
-        unset PROMPT_COMMAND
-        unalias ls ps
+        $ . prep
 
+  * automatic recompilation
 
-  * either disable git-prompt, or do it outside a git repo
-
-  * `inotify . -- make`
+        $ x inotify . -- make
+        $ x inotify . -- make all README.html
 
   * touch 'hello world'
 

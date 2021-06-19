@@ -23,3 +23,5 @@ file*
 foo
 log
 demo/
+crooked_env
+modify_env

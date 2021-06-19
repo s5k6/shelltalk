@@ -1,5 +1,9 @@
 
-> FIXME references to lecture slides SQ and PK3
+This text is feeding on some Shell stuff taken from a [beginners
+lecture](https://stefan-klinger.de/files/sq_15w.pdf), and Linux
+Systems Programming stuff taken from a third semester [C
+course](https://stefan-klinger.de/files/pk3_15w.pdf), both of which
+I've had the joy to deliver repeatedly at U'KN.
 
 > FIXME Running `make` should compile all C programs used in the
   demonstration.
@@ -19,9 +23,10 @@ in.
     Password:
     # yast2
 
-Note, that typing `#` on the command line (or in a shell script)
-introduces a comment until the end of the line.  The actual situation
-should be clear from the context.
+Note, that `$` and `#` may be legitimate output of a previously run
+command, and that typing `#` on the command line (or in a shell
+script) introduces a *comment* until the end of the line.  The actual
+situation should be clear from the context.
 
 In this text, we exlusively work as unprivileged user.
 
@@ -36,8 +41,8 @@ Finding Documentation
 
 The definitive source of information should be the manual pages
 installed on your system.  You should find them in sync with installed
-software, compensating for the diffrent flavours, distributions and
-implementations of existing tools.
+software, compensating for the diffrent versions, flavours,
+distributions and implementations of existing tools.
 
 ⇒ Rather use locally installed man-pages than the internet.
 
@@ -78,13 +83,18 @@ specified, the first matching manual will be shown.
 The Info system
 ---------------
 
-All Info documentation is arranged in a tree.  Use the cursor keys to
-move around, (Shift)+Tab to jump to the next (previous) hyperlink,
-Return to follow link, `p`/`n`/`u` to move to the previous/next/parent
-node in the document tree, `/` to search for a string, `q` to quit.
+Info is a hypertext system, with roots predating the WWW.
+
+    $ info
+
+Use the cursor keys to move around, (Shift)+Tab to jump to the next
+(previous) hyperlink, Return to follow link, `p`/`n`/`u` to move to
+the previous/next/parent node in the document tree, `/` to search for
+a string, `q` to quit.
 
 Try
 
+    $ info info
     $ info bash
 
 Compare these two:
@@ -116,14 +126,22 @@ environment variable:
     $ echo $SHELL
     /bin/bash
 
+At the time of writing, this is
+
+    $ bash --version
+    GNU bash, version 5.1.8(1)-release (x86_64-pc-linux-gnu)
+
+
 
 Simple Commands
 ===============
 
-> Search bash(1) for “Simple Commands” to get the complete picture.
+A simple command is a sequence of blank-separated words and
+redirections.  The first word specifies the command, the remaining
+words are passed as arguments to the invoked command.
 
-The shell needs to interpret your input to find out what to do.  For
-simple commands, the procedure is:
+> Above is paraphrased from bash(1).  Search bash(1) for “Simple
+> Commands” to get the complete picture.
 
  1. The shell splits your input into words (⇒ what is a word?).
 
@@ -147,7 +165,7 @@ file names!
 >    `rmdir`
 >
 >  * Investigating and editing files with `file`, `cat`, `less`,
->    `nano`,
+>    `nano`.  Note that `less` is `man`'s pager.
 >
 >  * Managing files with `cp`, `mv`, `rm`, `touch`
 
@@ -192,7 +210,7 @@ Use the `type` builtin to figure out how the shell interprets the
 command.  Examples:
 
     $ type ls
-    ls is aliased to `ls $LS_OPTIONS'         # implicit recursion avoidance
+    ls is aliased to `ls $LS_OPTIONS'
 
     $ type cd
     cd is a shell builtin
@@ -215,9 +233,9 @@ Do not expect documentation.
 
 * * *
 
-Back to running simple commands: The Input has been split into words,
-i.e., into command and arguments, the command has been identified as
-an executable file.  How is it run?
+Back to running simple commands: Assuming the Input has been split
+into words, i.e., into command and arguments, the command has been
+identified as an executable file.  How is it run?
 
 
 Looking at the C side of it
@@ -258,9 +276,10 @@ Globbing
 --------
 
 The shell expands wildcard characters when they appear on the command
-line. This is called **globbing** in Unix jargon, and a pattern is
-referred to as **glob** (in contrast to a regular expression, which is
-another kind of pattern).
+line. This is called **globbing** in Unix jargon (but bash(1) says
+**pathname expansion** instead), and a pattern is referred to as
+**glob** (in contrast to a regular expression, which is another kind
+of pattern).
 
 The character `*` matches any sequence of characters, `?` Matches any single
 character, and `[`*list*`]` matches any single character in the *list*.
@@ -449,7 +468,7 @@ unquoted mode.  Then:
 
   * An unquoted…
 
-      - …backslash `\` quotes the next character, or deletes a
+      - …backslash `\` escapes the next character, or deletes a
         directly following newline,
 
       - …single quote `'` switches on strong quoting,
@@ -503,7 +522,146 @@ needed:
 The seven kinds of expansion
 ----------------------------
 
-FIXME
+*After* splitting the input into words (at blanks, i.e., space and
+tab), the shell performs **seven kinds of expansion**, in this order:
+
+ 1. Brace expansion.
+
+ 2. performed left-to right:
+
+      * Tilde expansion — e.g., `~` → your home directory.
+
+      * Parameter and variable expansion — e.g., `$HOME` → your home directory.
+
+      * Arithmetic expansion.
+
+      * Command substitution
+
+ 3. Pathname expansion — this is globbing.
+
+Each of which has a section in bash(1).
+
+
+Shell scripts
+=============
+
+A shell script is an executable plain text file (cf. chmod(1)),
+starting with the shebang (aka. **hashbang**) indicating where to find
+the interpreter.
+
+    #!/bin/bash
+
+The exact mechanics and limitations are is explained in execve(2).
+
+
+Environment variables
+---------------------
+
+FIXME move this to past execve
+
+Every Linux processes can access a per-process list of environment
+variables, cf. environ(7).
+
+  * By convention, these are key/value pairs, both entries being
+    0-terminated strings.
+
+  * Can be investigated in `/proc/$$/environ` (use a hexdump tool).
+
+  * Typically (but *not* necessarily), the environment is handed down
+    form a process to all programs it calls (cf. below).
+
+
+### Shell variables
+
+> Read `info '(bash)Environment'` and `info '(bash)Shell Parameters'`
+> and for full details.
+
+Shell variables are not environment variables!
+
+  * When the shell starts, it creates shell variables from all
+    environment variables.  Thus, we can read the “environment
+    variable” `HOME` using
+
+        $ echo $HOME
+        /home/sk
+
+  * Modifying shell variables **does not modify the environment** of
+    the shell process (although the manual says otherwise), but only
+    the shell's variables.
+
+  * Only shell variables that have been **marked for export** (e.g.,
+    using the `export` or `declare` builtin) will be part of the
+    environment of a new process.
+
+  * All variables imported from the environment at startup are
+    implicitly marked for export.
+
+  * The export property can be removed with `export -n`.
+
+
+Advice
+------
+
+  * Use available tools.  The shell is a **tool-combiner**.
+
+    Learn sed(1), find(1), ssh(1), tar(1), ….
+
+  * Shell scripts do have **no suffix**.
+
+    Using a suffix like `.sh` would be the surfacing of an
+    implementation detail.  User experience degrades.  On replacing
+    the script by another implementation, users (human and mechanic)
+    have to be informed and adapt.  The apt user can find out whether
+    a file is a script (and what kind thereof), and the rest should
+    not care.
+
+  * Use **lowercase variable names** in your scripts.
+
+    This is a poor man's namespace segregation: Though there's no
+    technical need, *environment variables* tend to be uppercase-only.
+    So lowercase variables decrease your chance to overwrite one
+    ([example](https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap08.html)).
+
+  * The **shebang** is `#!/bin/bash`, unless your OS *dictates* otherwise.
+
+    Because the [Linux Filesystem Hierarchy Standard
+    (FHS)](https://refspecs.linuxfoundation.org/fhs.shtml) puts
+    “Essential user command binaries” in `/bin`, amongst which are
+    `/bin/sh` and `/bin/csh`.
+
+    The use of `#!/usr/bin/env bash` is a silly custom, originating in
+    the early days of Python, the community of which was plagued by
+    different ideas about where to put the interpreter.  Also, it
+    brings in `$PATH`, probably against your aim for portability.
+
+  * Always aiming for **portability is a misguided objective**.
+
+    Shell scripts typically utilise avaliable system tools,
+    e.g. sed(1), which already differs between unixoid systems (`-E`
+    versus `-r` for extended regular expressions).
+
+    If you do need portability, decide on the standards you commit to
+    (SUS, POSIX, FHS, …?), limit your use of system tools to the
+    standardised, and rethink whether the effort is warranted.  Then
+    the shebang is `#!/bin/sh`.
+
+  * Rather **fail** catastrophically and fast, than subtly and late.
+
+  * A **template** sufficient for 99% of your bash scripts:
+
+        #!/bin/bash
+        set -u -e -C
+        shopt -s failglob
+
+    Then, deviate as needed, e.g., adjusting `failglob` and `nullglob`
+    mid-script for a tool that needs this.
+
+  * A **stub** for your `~/.bashrc`:
+
+        set -u +H -C
+        shopt -s failglob globstar
+        shopt -u progcomp    # progcomp is buggy with failglob
+
 
 
 Running a program
@@ -1019,9 +1177,10 @@ Pipelines
 =========
 
 A **pipeline** is a sequence of one or more *commands* separated by
-the pipe `|` control operator.
+the pipe `|` control operator.  (paraphrased from bash(1))
 
-> Search bash(1) for “SHELL GRAMMA” to get the complete picture.
+> Above is paraphrased from bash(1).  Search bash(1) for “SHELL
+> GRAMMAR” to get the complete picture.
 
 ______________________________________________________________________
 TODO
