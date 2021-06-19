@@ -1,9 +1,14 @@
+---
+title: Why the Shell…?
+author: Stefan Klinger <https://stefan-klinger.de/>
+---
 
 This text is feeding on some Shell stuff taken from a [beginners
 lecture](https://stefan-klinger.de/files/sq_15w.pdf), and Linux
 Systems Programming stuff taken from a third semester [C
 course](https://stefan-klinger.de/files/pk3_15w.pdf), both of which
-I've had the joy to deliver repeatedly at U'KN.
+I've had the joy to deliver repeatedly at U'KN.  (Unfortunately, the C
+course degraded over the years, you'll find better ones).
 
 > FIXME Running `make` should compile all C programs used in the
   demonstration.
@@ -26,7 +31,7 @@ in.
 Note, that `$` and `#` may be legitimate output of a previously run
 command, and that typing `#` on the command line (or in a shell
 script) introduces a *comment* until the end of the line.  The actual
-situation should be clear from the context.
+situation, however, should be clear from the context.
 
 In this text, we exlusively work as unprivileged user.
 
@@ -181,11 +186,11 @@ The shell **searches** for the command to execute:
   * otherwise, the shell looks into the following dictionaries, in
     this order, trying to resolve the command name:
 
-      - an **alias** is a simple abbreviation for a single command
+     1. an **alias** is a simple abbreviation for a single command
 
-      - a **function** may contain multiple commands, and be recursive,
+     2. a **function** may contain multiple commands, and be recursive,
 
-      - a **builtin** exposes a feature of the shell to the command line.
+     3. a **builtin** exposes a feature of the shell to the command line.
 
   * if that's still not successful, search the directories in the
     `PATH` environment variable for an executable file of that name.
@@ -527,7 +532,7 @@ tab), the shell performs **seven kinds of expansion**, in this order:
 
  1. Brace expansion.
 
- 2. performed left-to right:
+ 2. Performed left-to right:
 
       * Tilde expansion — e.g., `~` → your home directory.
 
@@ -535,11 +540,15 @@ tab), the shell performs **seven kinds of expansion**, in this order:
 
       * Arithmetic expansion.
 
-      * Command substitution
+      * Command substitution.
 
- 3. Pathname expansion — this is globbing.
+      * Process substitution.
 
-Each of which has a section in bash(1).
+ 4. Word splitting — again!
+
+ 5. Pathname expansion — this is globbing.
+
+Then, unquoted quotes are removed.
 
 
 Shell scripts
@@ -551,7 +560,7 @@ the interpreter.
 
     #!/bin/bash
 
-The exact mechanics and limitations are is explained in execve(2).
+The exact mechanics and limitations are explained in execve(2).
 
 
 Environment variables
@@ -661,7 +670,6 @@ Advice
         set -u +H -C
         shopt -s failglob globstar
         shopt -u progcomp    # progcomp is buggy with failglob
-
 
 
 Running a program
@@ -1215,56 +1223,3 @@ TODO
 Further Reading:
 
   * https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09
-
-
-
-Myths
-
-  * Always write portable shell scripts.
-
-    Systems with an incompatible shell are likely to feature
-    incompatible tools as well (e.g., SLES 11 features a `sed`
-    implementation which does not understand `-E`)
-
-  * Always name scripts `foo.sh`
-
-    It's an implementation detail, that unnecessarily fixes an
-    interface.  The apt can find out, the inept should not care.
-
-
-Types of commands
------------------
-
-The first word is the **command name**, and used by the shell to [find
-the command][comex] to execute.
-
-  * If command name contains at least on slash, then it is used as
-    path to find an **executable file**, be it absolute or relative
-    to the shell's current directroy.
-
-        $ /bin/uname
-        Linux
-
-        $ ./hello
-        Hello world
-
-  * If the command name contains no slash, then the shell starts to
-    search, in order, these places:
-
-      - [Aliases][aliases] are repalced by their definition, before
-        command lookup continues recursively.
-
-      - [Shell functions][funcs] contain a series of commands to be
-        executed by the shell (not by a new process, as would be the
-        case for a shell script).
-
-      - [Builtin commands][builtins] are part of the shell's
-        functionality, and cannot be redefined by the user.
-
-      - The PATH environment variable is searched for an executable
-        file with the command name.
-
-[aliases]: https://man7.org/linux/man-pages/man1/bash.1.html#ALIASES
-[comex]: https://man7.org/linux/man-pages/man1/bash.1.html#COMMAND_EXECUTION
-[funcs]: https://man7.org/linux/man-pages/man1/bash.1.html#FUNCTIONS
-[builtins]: https://man7.org/linux/man-pages/man1/bash.1.html#SHELL_BUILTIN_COMMANDS
