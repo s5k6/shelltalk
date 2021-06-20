@@ -628,8 +628,9 @@ Advice
 
     This is a poor man's namespace segregation: Though there's no
     technical need, *environment variables* tend to be uppercase-only.
-    So lowercase variables decrease your chance to overwrite one
-    ([example](https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap08.html)).
+    So lowercase variables decrease your chance to overwrite one ([The
+    Open Group Base
+    Specifications](https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap08.html)).
 
   * The **shebang** is `#!/bin/bash`, unless your OS *dictates* otherwise.
 
@@ -670,6 +671,9 @@ Advice
         set -u +H -C
         shopt -s failglob globstar
         shopt -u progcomp    # progcomp is buggy with failglob
+
+        # See: info '(coreutils)Formatting the file names'
+        export QUOTING_STYLE=shell   # or `shell-escape`
 
 
 Running a program

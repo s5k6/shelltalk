@@ -6,9 +6,11 @@ targets = $(sources:.c=)
 vpcc = gcc -std=c99 -g -Wall -Wextra -Wpedantic -Wbad-function-cast \
 	-Wconversion -Wwrite-strings -Wstrict-prototypes -Wshadow
 
-.PHONY : all clean
+.PHONY : all html clean
 
 all : $(targets)
+
+html : Why_the_Shell.html
 
 clean :
 	rm -f $(targets)

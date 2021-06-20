@@ -1,0 +1,17 @@
+#!/bin/bash
+set -u -e -C
+shopt -s failglob
+
+# Information disclosure, taken from [1]
+#
+# Legit use:
+#
+#     $ ./unqoted1 LALA
+#
+# Illegit use:
+#
+#     $ ./unqoted1 \*
+
+echo Argument is $1
+
+# [1]: https://unix.stackexchange.com/questions/171346/security-implications-of-forgetting-to-quote-a-variable-in-bash-posix-shells
