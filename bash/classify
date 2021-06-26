@@ -1,24 +1,19 @@
 #!/bin/bash
 set -u -e -C
 
-# Legit use:
+# Arbitrary code execution, taken from [1].
 #
-#     $ mkdir foo
-#     $ ./unqoted3
-#
-# Illegit use:
-#
+#     $ mkdir foo             # works
 #     $ mkdir 'x -o x'        # directory classified as file
 #     $ touch 'x -o -v a[0$(date>&2)]'      # code execution
-#
-#     $ ./unqoted3
 
 for file in *; do
 
-    if [ -f $file ]; then
-        echo "Is a file: ${file}"
+    if test -f $file; then          # here is the bug!
+
+        echo "Is file: ${file}"
     else
-        echo "Not a file: ${file}"
+        echo "No file: ${file}"
     fi
 
 done

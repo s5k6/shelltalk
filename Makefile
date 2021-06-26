@@ -21,5 +21,7 @@ clean :
 
 # -Vsecnumdepth=1 --number-sections
 %.html : %.md
-	pandoc  -f markdown -t html -s --toc -c media/style.css \
+	pandoc  -f markdown -t html -s \
+	  --toc --toc-depth=2 \
+	  -c media/style.css \
 	  -o $@ $<

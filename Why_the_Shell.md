@@ -49,7 +49,8 @@ installed on your system.  You should find them in sync with installed
 software, compensating for the diffrent versions, flavours,
 distributions and implementations of existing tools.
 
-⇒ Rather use locally installed man-pages than the internet.
+Use the internet for ideas, but verify them against locally installed
+docs.
 
 
 Manual Pages
@@ -113,7 +114,7 @@ end of the former.
 > IMHO: Expect the man-page to provide all necessary information.  If
 > Info documentation exists, then it is probably more extensive and
 > worth visiting if you need more in-depth knowledge.  Expect all core
-> utilities to have very good Info documentation, try `info
+> utilities to have *very good* Info documentation, try `info
 > coreutils`.
 
 
@@ -465,11 +466,8 @@ Think of backslash `\`, single quote `'` and double quote `"` as
 **quoting toggles** that switch different quoting modes on and off,
 with `\` affecting only the following character.
 
-In languages like Java, quotes delimit string literals, which are
-somewhat atomic entities for the compiler.  Not so in the shell.
-
-Think of the shell as parsing your input left-to-right, starinig in
-unquoted mode.  Then:
+Parsing your input left-to-right, the shell starts in unquoted mode,
+then:
 
   * An unquoted…
 
@@ -490,8 +488,8 @@ unquoted mode.  Then:
         `"`, `$`, `‘`, or `\`.
 
 This simplifies writing a parser to a pretty straight forward state
-machine, and also allows to **switch quoting style** on the fly, as
-needed:
+machine, and also allows to **switch the quoting style** on the fly,
+as needed:
 
   * Unusual, but proves the point: The first `'` switches strong
     quoting on (protecting the space), the second one switches it off.
@@ -524,39 +522,146 @@ needed:
 > bash(1).
 
 
-The seven kinds of expansion
-----------------------------
+Seven kinds of expansion
+------------------------
 
-*After* splitting the input into words (at blanks, i.e., space and
-tab), the shell performs **seven kinds of expansion**, in this order:
+*After* initially splitting the input into words (at blanks, i.e.,
+space and tab), the shell performs **seven kinds of expansion**.
 
- 1. Brace expansion.
+Amongst these, you'll find
 
- 2. Performed left-to right:
+  * parameter and variable expansion, command substitution
 
-      * Tilde expansion — e.g., `~` → your home directory.
+  * a second round of word splitting, but this time using the
+    **Internal Field Separator** `$IFS` for delimiting words, and
 
-      * Parameter and variable expansion — e.g., `$HOME` → your home directory.
+  * pathname expansion, aka. globbing
 
-      * Arithmetic expansion.
+to be performed in this order.
 
-      * Command substitution.
+> Note: I don't want to repeat the manual here.  These are all
+> outlined in bash(1), and **much more detailed** in `info
+> '(bash)Shell Expansions'`.  Look them up as you need them.
 
-      * Process substitution.
+The details are many and subtle, but *one* major point, simplified, is
+this: The result of expanding an **unquoted variable** is itself split
+into words.  And all the resulting words are used for globbing.
 
- 4. Word splitting — again!
+    $ x='a* b*'
 
- 5. Pathname expansion — this is globbing.
+    $ ./arg "$x"       # weakly quoted, result not expanded
+    argv[0] = ./arg
+    argv[1] = a* b*
 
-Then, unquoted quotes are removed.
+    $ ./arg $x         # unquoted, result expanded and used as globs
+    argv[0] = ./arg
+    argv[1] = arg
+    argv[2] = arg.c
+    argv[3] = background
+    argv[4] = background.c
+
+Note, that the **initial word splitting** (finding the command) uses
+**blanks** (i.e., space and tab) to separate words.  The word
+splitting of expansion results uses the characters in the shell's `$IFS`
+variable (defaulting to `$' \t\n'`):
+
+    $ x='a*,b*'       # note the comma
+
+    $ ./arg $x
+    argv[0] = ./arg
+    argv[1] = a*,b*   # no file name contains a comma
+
+    $ IFS=,           # set IFS to split words at `,` after expansion
+
+    $ ./arg $x foo
+    argv[0] = ./arg
+    argv[1] = arg
+    argv[2] = arg.c
+    argv[3] = background
+    argv[4] = background.c
+
+
+Always quote your variables
+---------------------------
+
+> The web is full of information on how missing quotes introduce
+> trouble, a particularly extensive is a [Stack Exchange
+> post](https://unix.stackexchange.com/questions/171346), which was
+> the source of the following examples
+
+
+### Information disclosure
+
+The script [bash/disclose](bash/disclose) should report its argument,
+and contains the line
+
+    echo Argument is $1
+
+This may leak the names of all files in the working directory, because
+the unquoted use of `$1` is subjected to pathname expansion after
+parameter expansion.
+
+    $ bash/disclose hello
+    Argument is hello
+
+    $ bash/disclose \*
+    Argument is arg arg.c background background.c bash closedup closedup.c conflict conflict.c crooked_env crooked_env.c …
+
+
+### Arbitrary code execution, via input
+
+The script [bash/nantucket](bash/nantucket) replaces the second word
+in each line of a limerick with the script's argument.
+
+    $ bash/nantucket FOO
+    There FOO was a man from Nantucket
+    Who FOO all his cash in a bucket.
+
+The key line in the script is this one
+
+    awk -v awkVar=$1 '{ $2 = awkVar; print }'
+
+where the unquoted command line argument `$1`, after expansion, is
+subject to word splitting potentially **passing more arguments** to
+awk(1).  Being able to execute code, awk(1) can be tricked to run a
+command:
+
+    $ ./nantucket 'x BEGIN{system("date")}'
+    Sun Jun 20 04:02:16 PM CEST 2021
+
+
+### Arbitrary code execution, via file
+
+The script [bash/classify](bash/classify)
+
+    $ bash/classify
+    …
+    Is file: Makefile
+    No file: media               # it's a directory
+    …
+
+The vulnerable lines in the script is
+
+    test -f $file
+
+Again, more arguments can be passed to test, yielding a wrong result.
+But worse, bash's `test` builtin can be asked to check for the
+existence of an array variable, which requires evaluation of the
+index:
+
+    $ touch 'x -o -v a[$(date>&2)]'
+    $ bash/classify
+    …
+    Sun Jun 20 04:08:14 PM CEST 2021     # executed `date`
+    …
 
 
 Shell scripts
 =============
 
 A shell script is an executable plain text file (cf. chmod(1)),
-starting with the shebang (aka. **hashbang**) indicating where to find
-the interpreter.
+starting with the **shebang** (aka. **hashbang**) indicating where to
+find the interpreter.
 
     #!/bin/bash
 
@@ -621,28 +726,31 @@ Advice
     implementation detail.  User experience degrades.  On replacing
     the script by another implementation, users (human and mechanic)
     have to be informed and adapt.  The apt user can find out whether
-    a file is a script (and what kind thereof), and the rest should
-    not care.
+    a file is a script (and what kind of), and the rest should not
+    care.
 
   * Use **lowercase variable names** in your scripts.
 
     This is a poor man's namespace segregation: Though there's no
     technical need, *environment variables* tend to be uppercase-only.
-    So lowercase variables decrease your chance to overwrite one ([The
-    Open Group Base
+    So lowercase variables decrease your chance to overwrite one
+    (which is described in [The Open Group Base
     Specifications](https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap08.html)).
 
-  * The **shebang** is `#!/bin/bash`, unless your OS *dictates* otherwise.
+  * The **shebang** is `#!/bin/bash`.
 
     Because the [Linux Filesystem Hierarchy Standard
     (FHS)](https://refspecs.linuxfoundation.org/fhs.shtml) puts
     “Essential user command binaries” in `/bin`, amongst which are
     `/bin/sh` and `/bin/csh`.
 
+    Okay, *maybe* it's `#!/usr/bin/bash`.
+
     The use of `#!/usr/bin/env bash` is a silly custom, originating in
     the early days of Python, the community of which was plagued by
-    different ideas about where to put the interpreter.  Also, it
-    brings in `$PATH`, probably against your aim for portability.
+    different ideas about where to put the interpreter.  Also, it now
+    depends on the location of env(1), and the value of `$PATH`, both
+    of which counteract portability.
 
   * Always aiming for **portability is a misguided objective**.
 
@@ -653,9 +761,9 @@ Advice
     If you do need portability, decide on the standards you commit to
     (SUS, POSIX, FHS, …?), limit your use of system tools to the
     standardised, and rethink whether the effort is warranted.  Then
-    the shebang is `#!/bin/sh`.
+    the shebang is likely `#!/bin/sh`.
 
-  * Rather **fail** catastrophically and fast, than subtly and late.
+  * Rather **fail fast** and catastrophically, than late and subtly.
 
   * A **template** sufficient for 99% of your bash scripts:
 
@@ -673,7 +781,7 @@ Advice
         shopt -u progcomp    # progcomp is buggy with failglob
 
         # See: info '(coreutils)Formatting the file names'
-        export QUOTING_STYLE=shell   # or `shell-escape`
+        export QUOTING_STYLE=shell     # or `shell-escape`
 
 
 Running a program
@@ -844,14 +952,17 @@ change, see [wait.c](wait.c).
 >
 >     $ strace -e trace=%process -olog -f bash -c 'sleep 3& date'
 >
-> Note: The shell will not terminat right away, because it waits for
+> Note 1: The shell will not terminat right away, because it waits for
 > its children before termination.  But you'll see the date(1) printed
 > immediately, proving the sleep(1) to run in the background of the
 > shell.
+>
+> Note 2: wait(2) may actually be a frontend to wait4(2).  I’ll stick
+> to writing “wait” for simplicity, but expect strace(1) to report
+> “waitfor” .
 
-> Note: wait(2) may actually be a frontend to wait4(2), but I’ll stick
-> to writing “wait” for simplicity.
 
+### Orphans, zombies, reapers, and double forks…
 
 If a child process dies, it becomes a **zombie** until…
 
@@ -868,10 +979,10 @@ parent, zombies may amass and pollute the process table.
 
 ⇒ Wait for your children lest they become zombies.
 
-It was an established technique to fight zombies with a double fork.
-Alternatively, explicitly ignore SIGCHLD.  The shell reacts to SIGCHLD
-to reap zombies as soon as possible, and reports before printing the
-next prompt:
+It was an established technique to fight zombies with a **double
+fork**.  Alternatively, explicitly ignore SIGCHLD.  The shell reacts
+to SIGCHLD to reap zombies as soon as possible, and only reports
+before printing the next prompt:
 
     $ sleep 1 &
     $                 # wait more than 1 second, then hit Return
@@ -1059,7 +1170,7 @@ descript**or**, using dup2(2), [dup2.c](dup2.c):
     who's there
 
 
-### Summary redirection to/from files works
+### Summary: redirection to/from files
 
 So redirection from/to files simply makes the shell open these files
 in read/write mode, and assigns the expected file descriptors.
@@ -1225,5 +1336,7 @@ TODO
 
 
 Further Reading:
+
+  * https://mywiki.wooledge.org/BashPitfalls
 
   * https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09

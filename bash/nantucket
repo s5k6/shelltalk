@@ -1,16 +1,10 @@
 #!/bin/bash
 set -u -e -C
-shopt -s failglob
 
 # Arbitrary code execution, taken from [1].
 #
-# Legit use:
-#
-#     $ ./unqoted2 LALA
-#
-# Illegit use:
-#
-#     $ ./unqoted2 'x BEGIN{system("date")}'
+#     $ ./nantucket LALA
+#     $ ./nantucket 'x BEGIN{system("date")}'
 
 cat <<. | awk -v awkVar=$1 '{ $2 = awkVar; print }' -
 There once was a man from Nantucket

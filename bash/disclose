@@ -1,16 +1,7 @@
 #!/bin/bash
-set -u -e -C
-shopt -s failglob
 
-# Information disclosure, taken from [1]
-#
-# Legit use:
-#
-#     $ ./unqoted1 LALA
-#
-# Illegit use:
-#
-#     $ ./unqoted1 \*
+# Information disclosure, taken from [1].  Should only print argument,
+# but passing `\*` leaks names of all files in working directory.
 
 echo Argument is $1
 
