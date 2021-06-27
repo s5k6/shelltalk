@@ -1444,10 +1444,76 @@ inherit the open file descriptors from.
 See fifo(7) for overview, mkfifo(1) and mkfifo(3) for use.
 
 
-More redirection and pipe concepts
-----------------------------------
+Redirections involving pipes
+----------------------------
 
-FIXME CONTINUE
+Note the subtle difference between “pipeline” (a shell grammar
+construct), and “pipe” (an OS IPC concept).
+
+**Note**: Unless documented (search bash(1) for “subshell”), the
+precise arrangement of processes, whether a child is created, and of
+which parent, is an *implementation detail* of the shell.  Do not
+assume the structure revealed by strace(1) to be applicable to all
+situations.  We'll discuss some relevant artefacts of subshells in the
+next section.
+
+
+### Literal text to *stdin*
+
+Pipelines are the mechanism behind bash(1) **here strings** and **here
+documents**:
+
+    $ rev <<<'Amore, Roma.'
+    .amoR ,eromA
+
+    $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c "rev <<<'Amore, Roma.'"
+
+Have a look at the `log` file: The child forked for `cat` creates a
+pipe, and writes to it before replacing itself with the `cat` program.
+The process talks to itself, obviously limited by pipe capacity.
+
+
+### *stdout* to string
+
+FIXME talk about `$(…)` more
+
+    $ ./arg "$(date)"
+    argv[0] = ./arg
+    argv[1] = Sun Jun 27 03:54:05 PM CEST 2021
+
+    $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c './arg "$(date)"'
+
+
+### *stdout* to named file
+
+Also bash(1) **process substitution** uses pipes, plus the idea that a
+process has its open file descriptors listed under
+`/proc/${PID}/fd/${fdnum}`:
+
+    $ rev <(date)
+    1202 TSEC MP 12:40:30 72 nuJ nuS
+
+    $ echo <(date)
+    /dev/fd/63
+
+So `<(…)` is actually replaced by a **file name** that is internally
+connected to a pipe providing *stdout* of the enclosed command.
+
+> Try `namei <(date)` to get the complete symlink resolution, see
+> namei(1).
+
+Again,
+
+    $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c 'rev <(date)'
+
+reveals how a pipe's read end becomes the argument of rev(1).
+
+    …
+    8378  pipe([3, 4])                      = 0
+    8378  dup2(3, 63)                       = 63
+    …
+    8378  execve("/usr/bin/rev", ["rev", "/dev/fd/63"], 0x56458d99edf0 /* 42 vars */) = 0
+    …
 
 
 
