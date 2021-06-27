@@ -19,3 +19,6 @@ date >| world
 popd >/dev/null
 
 popd >/dev/null
+
+clear
+echo shell prepared for demo

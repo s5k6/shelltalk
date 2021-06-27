@@ -7,38 +7,57 @@ This text is feeding on some Shell stuff taken from a [beginners
 lecture](https://stefan-klinger.de/files/sq_15w.pdf), and Linux
 Systems Programming stuff taken from a third semester [C
 course](https://stefan-klinger.de/files/pk3_15w.pdf), both of which
-I've had the joy to deliver repeatedly at U'KN.  (Unfortunately, the C
-course degraded over the years, you'll find better ones).
-
-> FIXME Running `make` should compile all C programs used in the
-  demonstration.
-
-> FIXME explain the shell's current directory
+I've had the joy to deliver repeatedly at U'KN.  (Unfortunately, for…
+administrative reasons, the C course degraded over the years, and I
+haven't found the time to unearth the better versions.  You'll find
+better ones).
 
 
-Notation
-========
+### Warning — Do not use the examples
+
+The provided example code files are intended as **minimal working
+examples**, and constitute **no best practices** (e.g, not using
+`O_CLOEXEC` where they should, leaving unused file desctiptors open,
+not checking for errors properly, *etc.* …).
+
+⇒ Do not use the examples as basis for your own projects, but for
+experiments and to foster your understanding.  Do read the documentation!
+
+> I do not claim intellectual property on the examples.  They are
+> trivial and obvious applications of the relevant documents, and may
+> even be derived themselves from examples you'll find there.
+
+
+### Notation
 
 It is a well established convention in the documentation of Linux/Unix
 shell commands, to write `#` for the root user's prompt, and `$` for
 the prompt of an unprivileged user, followed by the command to type
 in.
 
-    $ su
-    Password:
-    # yast2
-
 Note, that `$` and `#` may be legitimate output of a previously run
 command, and that typing `#` on the command line (or in a shell
 script) introduces a *comment* until the end of the line.  The actual
 situation, however, should be clear from the context.
 
+    $ su
+    Password:      # type your password here
+    # yast2
+
 In this text, we exlusively work as unprivileged user.
 
 > IMHO: One should stick to that convention when writing
 > documentation.  Many distributions and users define their own chic
-> prompt, leading to much variation without benefit for the reader.
-> In contrast, `$` and `#` form an established, simple code.
+> prompt, but in documentation this leads to much variation without
+> benefit for the reader.  In contrast, `$` and `#` form an
+> established, simple and ubiquitous code.
+
+
+
+> FIXME Running `make` should compile all C programs used in the
+  demonstration.
+
+> FIXME explain the shell's current directory
 
 
 Finding Documentation
@@ -1221,13 +1240,25 @@ The shell collects the child's exit code.
     …
     35958 <... wait4 resumed>…, 0, NULL) = 35959
 
-* * *
 
-Understanding this yields many more insights:
+Notes and conclusions
+---------------------
 
+### The flags passed to open(2)
 
-Bring in the harvest
---------------------
+You can easily observe the effects of the following redirection
+operators on the open system call:
+
+    $ for i in '<' '>' '<>' '>>' '>|'; do
+          c="true ${i}foo"   # the command to run
+          echo "$c"
+          strace -f bash -C -c "$c" 2>&1 | grep -E '^open.*foo'
+          rm -f foo
+      done
+
+If the `-C` shell option is used (you should do this), `>` implies
+`O_EXCL` protecting you from unwanted damage.
+
 
 ### Do not open files twice
 
@@ -1295,9 +1326,36 @@ and think about the order of the system calls `open`, `close` and
 
     $ foo 3>&1 1>&2 2>&3
 
+You may want this in a pipeline, where only *stdout* is forwarded to
+the next process, and *stderr* is not.  Also makes a great interview
+question.
+
+> Also a nice question: Assuming there's an open file descriptor 5,
+> what's the difference between the redirections `2>&5` and `2<&5`?
+
+
+### The shell's current open files
+
+FIXME move this into shell script section
+
+If the `exec` builtin is used without giving a command, then its
+redirections take effect in the current shell.
+
+    $ exec 1>log
+    $ date           # note, no output!
+    $ cat log >&2
+    Sat Jun 26 04:54:24 PM CEST 2021
+
+One may even use the file descriptor returned by open(2), and assign
+it to a shell variable, which gives a pretty direct interface to
+open(2) and close(2).  Search bash(1) for `>&-` for more information.
+
+
+Connecting processes
+====================
 
 Pipelines
-=========
+---------
 
 A **pipeline** is a sequence of one or more *commands* separated by
 the pipe `|` control operator.  (paraphrased from bash(1))
@@ -1305,12 +1363,110 @@ the pipe `|` control operator.  (paraphrased from bash(1))
 > Above is paraphrased from bash(1).  Search bash(1) for “SHELL
 > GRAMMAR” to get the complete picture.
 
+The idea is to **pipe** *stdout* of one command into *stdin* of another.
+
+    $ date | rev
+
+Remember, that “a simple command is a sequence of words *and
+redirections*”, i.e., in a pipeline, **each command has its own
+redirections**:
+
+    $ ls *.c /noSuchFile  |  wc -l  2>errors
+    ls: cannot access '/noSuchFile': No such file or directory
+    17
+    $ cat errors   # no content
+
+    $ ls *.c /noSuchFile 2>errors  |  wc -l
+    17
+    $ cat errors
+    ls: cannot access '/noSuchFile': No such file or directory
+
+So *after* setting up redirections for each command, the resulting
+file descriptor 1 of the former command is connected to file descriptor
+0 of the latter.
+
+
+Pipes are an OS feature
+-----------------------
+
+See pipe(7) for an overview.
+
+The pipe(2) system call creates a **unidirectional data channel**.
+The reading and writing end are bound to open file descriptors.
+
+The plain system call allows sending data between related (fork(2))
+processes, see [pipe.c](pipe.c):
+
+    $ ./pipe
+    Hello child process
+
+Combined with our knowledge of exec(3) and dup2(2), this extends to
+building pipelines.  We create a separate child for reading and
+writing, [pipeline.c](pipeline.c)…
+
+    $ ./pipeline data rev
+    1202 TSEC MP 34:63:10 72 nuJ nuS
+
+…as the shell does:
+
+    $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c 'date | rev'
+    1202 TSEC MP 63:42:20 72 nuJ nuS
+
+    $ cat log
+    …
+    6910  pipe([3, 4])                      = 0
+    6910  clone(…)        = 6911
+    6910  clone(…)        = 6912
+    6911  dup2(4, 1)                        = 1
+    6912  dup2(3, 0)                        = 0
+    6911  execve("/usr/bin/date", ["date"], …)          = 0
+    6912  execve("/usr/bin/rev", ["rev"], …)          = 0
+    …
+    6911  write(1, "Sun Jun 27 02:24:36 PM CEST 2021"..., 33) = 33
+    …
+    6912  read(0, "Sun Jun 27 02:24:36 PM CEST 2021"..., 4096) = 33
+    6912  write(1, "1202 TSEC MP 63:", 16)  = 16
+    6912  write(1, "42:20 72 nuJ nuS", 16)  = 16
+    6912  write(1, "\n", 1)                 = 1
+    6912  read(0, "", 4096)                 = 0
+    …
+
+
+### FIFOs
+
+FIFOs (aka. **named pipes**) are a very similar concept, except that
+the pipe is not bound to open file descriptors within a common parent
+process, but to a name in the file system instead.  Cooperating
+processes may then use convention to **find the pipe by name**, rather
+than **needing a common ancester** process to create the pipe, and to
+inherit the open file descriptors from.
+
+See fifo(7) for overview, mkfifo(1) and mkfifo(3) for use.
+
+
+More redirection and pipe concepts
+----------------------------------
+
+FIXME CONTINUE
+
+
+
+Subshells
+=========
+
+    $ echo hello | read x
+    $ echo $x
+
+    $ read x < <(echo hello)
+    $ echo $x
+    hello
+
+
+
 ______________________________________________________________________
 TODO
 
-  * <> >> >| shorthands
-
-  * closing file descriptors, or using exec for the shell's redirections
+  * closing file descriptors, or using exec for the shell's own redirections
 
   * `$@`, `$*`, `( "$@" )`
 
@@ -1329,10 +1485,6 @@ TODO
     program.  C-c makes the terminal (FIXME make clear to be vague
     about “terminal”) send a signal SIGINT to its child process, while
     C-d makes it flush stdin.  Write your own `cat`.
-
-  * The seven kinds of expansion: bash(1) /^EXPANSION
-
-  * Difference between shell variables and environment variables.
 
 
 Further Reading:
