@@ -1527,6 +1527,15 @@ Subshells
     $ echo $x
     hello
 
+TODO
+
+  * while read …; do …; done < <(…)
+
+  * builtin `mapfile` (aka. `readarray`)
+
+  * $BASHPID ./. $$
+
+  * `xargs`
 
 
 ______________________________________________________________________
@@ -1540,12 +1549,10 @@ TODO
 
   * bad:  path='/foo/bar/'; file="${path}qux"
 
-  * `namei`, `tee`, `xargs`
+  * `namei`, `tee`
 
   * Subshells created by `… <(…)` or `$(…)`, compared to `{…}`, and
     not to be confused with creation of arrays `…=(…)`.
-
-  * $BASHPID ./. $$
 
   * Maybe explain read(2), and why/when C-c or C-d is used to end a
     program.  C-c makes the terminal (FIXME make clear to be vague

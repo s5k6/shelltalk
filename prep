@@ -1,24 +1,31 @@
-# source this file do remove your extravaganza from the current shell
+# -*- mode: sh -*-
+
+# SOURCE this file to remove your extravaganza from the current shell
 
 pushd "$(git rev-parse --show-toplevel)" >/dev/null
 
 set +C +u
 shopt -u failglob nullglob
-export QUOTING_STYLE=literal
-unset PROMPT_COMMAND
-unalias ls ps 2>/dev/null
 
-#PS1='$ '
+export QUOTING_STYLE=literal
+
+unalias ps cd 2>/dev/null
+
+alias ls='ls --color=auto'
+
+unset PROMPT_COMMAND
+#PS1=$'\n$ '
 PS2=''
 
-mkdir -p demo
-pushd demo >/dev/null
-touch \* 'hello world'
-date >| hello
-date >| world
-popd >/dev/null
+(
+    mkdir -p filenames
+    cd filenames >/dev/null
+    touch \* 'hello world'
+    date >| hello
+    date >| world
+)
 
-popd >/dev/null
+popd
 
 clear
 echo shell prepared for demo
