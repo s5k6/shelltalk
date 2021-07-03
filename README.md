@@ -3,8 +3,10 @@ title: Why the Shell…?
 author: Stefan Klinger <https://stefan-klinger.de/>
 ---
 
+Why the shell does what it does, and how so.
+
 This text is feeding on some Shell stuff taken from a [beginners
-lecture](https://stefan-klinger.de/files/sq_15w.pdf), and Linux
+lecture](https://stefan-klinger.de/files/sq_15w.pdf), and some Linux
 Systems Programming stuff taken from a third semester [C
 course](https://stefan-klinger.de/files/pk3_15w.pdf), both of which
 I've had the joy to deliver repeatedly at U'KN.  (Unfortunately, for…
@@ -1322,21 +1324,9 @@ and think about the order of the system calls `open`, `close` and
 `dup2` involved.
 
 
-### Swapping *stdout* and *stderr*
-
-    $ foo 3>&1 1>&2 2>&3
-
-You may want this in a pipeline, where only *stdout* is forwarded to
-the next process, and *stderr* is not.  Also makes a great interview
-question.
-
-> Also a nice question: Assuming there's an open file descriptor 5,
-> what's the difference between the redirections `2>&5` and `2<&5`?
-
-
 ### The shell's current open files
 
-FIXME move this into shell script section
+FIXME maybe move this into shell script section
 
 If the `exec` builtin is used without giving a command, then its
 redirections take effect in the current shell.
@@ -1349,6 +1339,24 @@ redirections take effect in the current shell.
 One may even use the file descriptor returned by open(2), and assign
 it to a shell variable, which gives a pretty direct interface to
 open(2) and close(2).  Search bash(1) for `>&-` for more information.
+
+FIXME talk about file descriptors bound to shell variables, as in
+`{fd}>filename`.
+
+
+### Swapping *stdout* and *stderr*
+
+FIXME maybe move this to sommand substitution section
+
+    $ foo 3>&1 1>&2 2>&3 3>&-
+
+You may want this in a pipeline (or command substitution), where only
+*stdout* of a command is forwarded (or used), and *stderr* is not.
+Also makes a great interview question.  The `3>&-` simply calls
+close(2) on file descriptor 3.
+
+> Also a nice question: Assuming there's an open file descriptor 5,
+> what's the difference between the redirections `2>&5` and `2<&5`?
 
 
 Connecting processes
@@ -1437,9 +1445,9 @@ writing, [pipeline.c](pipeline.c)…
 FIFOs (aka. **named pipes**) are a very similar concept, except that
 the pipe is not bound to open file descriptors within a common parent
 process, but to a name in the file system instead.  Cooperating
-processes may then use convention to **find the pipe by name**, rather
-than **needing a common ancester** process to create the pipe, and to
-inherit the open file descriptors from.
+processes may then use convention to **find the pipe by name**,
+resolving the need for a **common ancester** process to create the
+pipe, and to inherit the open file descriptors from.
 
 See fifo(7) for overview, mkfifo(1) and mkfifo(3) for use.
 
@@ -1448,12 +1456,14 @@ Redirections involving pipes
 ----------------------------
 
 Note the subtle difference between “pipeline” (a shell grammar
-construct), and “pipe” (an OS IPC concept).
+construct), and “pipe” (an OS
+[IPC](https://en.wikipedia.org/wiki/Inter-process_communication)
+concept).
 
 **Note**: Unless documented (search bash(1) for “subshell”), the
-precise arrangement of processes, whether a child is created, and of
-which parent, is an *implementation detail* of the shell.  Do not
-assume the structure revealed by strace(1) to be applicable to all
+precise arrangement of processes, whether and when a child is created,
+and of which parent, is an *implementation detail* of the shell.  Do
+not assume the structure revealed by strace(1) to be applicable to all
 situations.  We'll discuss some relevant artefacts of subshells in the
 next section.
 
@@ -1475,7 +1485,8 @@ The process talks to itself, obviously limited by pipe capacity.
 
 ### *stdout* to string
 
-FIXME talk about `$(…)` more
+bash(1) **command substitution** replaces `$(command)` by the *stdout*
+produced by running `command`.
 
     $ ./arg "$(date)"
     argv[0] = ./arg
@@ -1483,12 +1494,24 @@ FIXME talk about `$(…)` more
 
     $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c './arg "$(date)"'
 
+*Between the parenthesis*, write a command as usual.  The quoting
+starts out as **unquoted** wrt. the `command`, which is exactly what
+you'd want to have.
+
+But note, that the output of `command` undergoes word splitting, so
+**proper quoting** of the command substitution is required.
+
+**Do not use** the historical syntax, `` `command` ``.  It is
+considered deprecated, does not nest as nicely, is harder to read, and
+treats some characters differently.  But remember to **quote** all
+occurrences of backtics, lest they invoke a command.
+
 
 ### *stdout* to named file
 
-Also bash(1) **process substitution** uses pipes, plus the idea that a
-process has its open file descriptors listed under
-`/proc/${PID}/fd/${fdnum}`:
+Also, bash(1) **process substitution** uses pipes, supported on
+systems, where a process has its open file descriptors listed under
+`/dev/fd/` (or similar, use namei(1) to find out):
 
     $ rev <(date)
     1202 TSEC MP 12:40:30 72 nuJ nuS
@@ -1499,14 +1522,11 @@ process has its open file descriptors listed under
 So `<(…)` is actually replaced by a **file name** that is internally
 connected to a pipe providing *stdout* of the enclosed command.
 
-> Try `namei <(date)` to get the complete symlink resolution, see
-> namei(1).
-
 Again,
 
     $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c 'rev <(date)'
 
-reveals how a pipe's read end becomes the argument of rev(1).
+reveals how a pipe's read end becomes the argument of rev(1):
 
     …
     8378  pipe([3, 4])                      = 0

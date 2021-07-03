@@ -8,7 +8,7 @@ vpcc = gcc -std=c99 -g -Wall -Wextra -Wpedantic -Wbad-function-cast \
 
 .PHONY : all html clean
 
-all : $(targets)
+all : $(targets) README.html
 
 html : Why_the_Shell.html
 
