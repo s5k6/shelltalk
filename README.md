@@ -1,18 +1,34 @@
 ---
 title: Why the Shell…?
+subtitle: Why the shell does what it does, and how so.
 author: Stefan Klinger <https://stefan-klinger.de/>
 ---
 
-Why the shell does what it does, and how so.
+Linux Shell Programming may feel revolting.  If something like
+“ordinary programming” existed at all, then Shell Programming would
+not be it.  But why is it so awkward?  After some basics, I'll try to
+show how direct an interface to the Linux OS the shell is, and why
+some of its awkwardness is the result of a quite elegant design.
 
-This text is feeding on some Shell stuff taken from a [beginners
-lecture](https://stefan-klinger.de/files/sq_15w.pdf), and some Linux
-Systems Programming stuff taken from a third semester [C
-course](https://stefan-klinger.de/files/pk3_15w.pdf), both of which
-I've had the joy to deliver repeatedly at U'KN.  (Unfortunately, for…
-administrative reasons, the C course degraded over the years, and I
-haven't found the time to unearth the better versions.  You'll find
-better ones).
+You should have a little shell and C experience to enjoy this.
+
+This is not a shell scripting course.  There are better and more
+extensive texts, and my scripting is far from perfect.  **Do have a
+look at** these:
+
+  * [The Grymoire](https://www.grymoire.com/Unix/index.html)
+
+  * [Bash Pitfalls](https://mywiki.wooledge.org/BashPitfalls)
+
+> This text is feeding on some Shell stuff taken from a [beginners
+> lecture](https://stefan-klinger.de/files/sq_15w.pdf), and some Linux
+> Systems Programming stuff taken from a third semester [C
+> course](https://stefan-klinger.de/files/pk3_15w.pdf), both of which
+> I've had the joy to deliver repeatedly at U'KN.  (Unfortunately,
+> for…  administrative reasons, the C course degraded over the years,
+> and I haven't found the time to unearth the better versions.  You'll
+> find better ones).
+
 
 
 ### Warning — Do not use the examples
@@ -25,9 +41,9 @@ not checking for errors properly, *etc.* …).
 ⇒ Do not use the examples as basis for your own projects, but for
 experiments and to foster your understanding.  Do read the documentation!
 
-> I do not claim intellectual property on the examples.  They are
-> trivial and obvious applications of the relevant documents, and may
-> even be derived themselves from examples you'll find there.
+> There is no originality in the examples.  They are trivial and
+> obvious applications of what everyone can find in the relevant
+> documents.
 
 
 ### Notation
@@ -37,10 +53,10 @@ shell commands, to write `#` for the root user's prompt, and `$` for
 the prompt of an unprivileged user, followed by the command to type
 in.
 
-Note, that `$` and `#` may be legitimate output of a previously run
-command, and that typing `#` on the command line (or in a shell
-script) introduces a *comment* until the end of the line.  The actual
-situation, however, should be clear from the context.
+Note, that `$` and `#` may as well be legitimate output of a
+previously run command, and that typing `#` on the command line (or in
+a shell script) introduces a *comment* until the end of the line.  The
+actual situation, however, should be clear from the context.
 
     $ su
     Password:      # type your password here
@@ -51,8 +67,8 @@ In this text, we exlusively work as unprivileged user.
 > IMHO: One should stick to that convention when writing
 > documentation.  Many distributions and users define their own chic
 > prompt, but in documentation this leads to much variation without
-> benefit for the reader.  In contrast, `$` and `#` form an
-> established, simple and ubiquitous code.
+> benefit for the reader.  In contrast, `$` and `#` form a simple and
+> ubiquitous code.
 
 
 
@@ -142,8 +158,8 @@ end of the former.
 The Bourne-Again Shell
 ----------------------
 
-This text is about the “GNU Bourne-Again Shell” `bash`, which claims
-to be compatible to the POSIX standard shell sh(1).
+This text uses the “GNU Bourne-Again Shell” `bash`, which claims to be
+compatible to the POSIX standard shell sh(1).
 
 Thus, use bash(1) for reference.  It actually is a good read.
 
@@ -202,7 +218,7 @@ Finding the command
 
 The shell **searches** for the command to execute:
 
-  * It the first word contains a **slash**, then it is assumed a path
+  * If the first word contains a **slash**, then it is assumed a path
     to an executable file,
 
   * otherwise, the shell looks into the following dictionaries, in
@@ -260,7 +276,7 @@ Do not expect documentation.
 
 * * *
 
-Back to running simple commands: Assuming the Input has been split
+Back to running simple commands: Assuming the input has been split
 into words, i.e., into command and arguments, the command has been
 identified as an executable file.  How is it run?
 
@@ -606,7 +622,7 @@ Always quote your variables
 ---------------------------
 
 > The web is full of information on how missing quotes introduce
-> trouble, a particularly extensive is a [Stack Exchange
+> trouble, particularly detailed is a [Stack Exchange
 > post](https://unix.stackexchange.com/questions/171346), which was
 > the source of the following examples
 
@@ -784,6 +800,14 @@ Advice
     standardised, and rethink whether the effort is warranted.  Then
     the shebang is likely `#!/bin/sh`.
 
+    If you still insist on *portability* ∩ *bash*, read [Bash empty
+    array expansion with `set
+    -u`](https://stackoverflow.com/questions/7577052/) and [the
+    associated
+    experiment](https://gist.github.com/dimo414/2fb052d230654cc0c25e9e41a9651ebe),
+    leaving you with a wart like `"${array[@]+"${array[@]}"}"` to
+    safely expand an array.
+
   * Rather **fail fast** and catastrophically, than late and subtly.
 
   * A **template** sufficient for 99% of your bash scripts:
@@ -835,7 +859,7 @@ The tools ps(1) and top(1) can be used to inspect the process table.
 > due to containerisation, but this is outside the scope of this text.
 
 The shell provides variables to inspect its PID (`$$`) and its parents
-PID (`$PPID`).  But be careful, `$$` may lie to you, see below.
+PID (`$PPID`).  But be careful, `$$` **may lie to you**, see below.
 
     $ echo "PID $$, PPID $PPID"
     PID 10566, PPID 10561
@@ -858,8 +882,8 @@ They have the shell's PID as PPID.
 Execute: Replace one program with another
 -----------------------------------------
 
-If you execute a program, then **by replacing the running program** —
-which may sound odd.
+On Linux, when you execute a program, then **by replacing the running
+program** — which may seem odd at first.
 
 The execve(2) system call (also observed above) **does not return** on
 success.  It replaces the calling program by a new one.  Some of the
@@ -1039,7 +1063,7 @@ Pressing C-d (Ctrl+D, ^D) signals end of input.
     dog
 
 > The fact that I/O appears line by line is a result of buffering in
-> the *line discipline* of terminal driver, just *slightly* out of
+> the *line discipline* of the terminal driver, just *slightly* out of
 > scope here… ;-)
 
 
@@ -1097,7 +1121,7 @@ for whatever) mean?
 ### Open a file by name
 
 > open(2) may actually use openat(2), but I'll stick to writing “open”
-> for simplicity.
+> for simplicity.  But look for `openat` in the output of strace(1).
 
 Usually, one would open(2) a file, before reading or writing, see
 [open.c](open.c)
@@ -1150,9 +1174,10 @@ This also works with write(2) in the other direction:
 So somehow the file `file5` was opened for writing, and the file
 descriptor 5 was made available to the newly run program.
 
-How does the shell do that?  We need to
+How does the shell do that?  We already know how to get a file
+descriptor from open(2), but here we
 
-  * control the file descriptor (0, 1, 2) returned by open(2), and
+  * control the file descriptor (5) returned by open(2), and
 
   * communicate an open file descriptor to a child process.
 
@@ -1280,9 +1305,13 @@ shell call open(2), so we'll have **two different** open file
 descript**ions**, not sharing a common file offset for writing:
 
     $ strace -olog -f bash -c 'ls -l README.md /noSuchFile 1>file12 2>file12'
-    $ grep file12 log
-    8571  openat(AT_FDCWD, "file12", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
-    8571  openat(AT_FDCWD, "file12", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    $ grep -A2 file12 log
+    12403 openat(AT_FDCWD, "file12", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    12403 dup2(3, 1)                        = 1
+    12403 close(3)                          = 0
+    12403 openat(AT_FDCWD, "file12", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    12403 dup2(3, 2)                        = 2
+    12403 close(3)                          = 0
 
 Instead, we'd like to reuse the file opened once for *stdout*, and
 duplicate its file descriptor to be used for *stderr*.
@@ -1478,15 +1507,16 @@ documents**:
 
     $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c "rev <<<'Amore, Roma.'"
 
-Have a look at the `log` file: The child forked for `cat` creates a
-pipe, and writes to it before replacing itself with the `cat` program.
-The process talks to itself, obviously limited by pipe capacity.
+Have a look at the `log` file: The child forked for rev(1) creates a
+pipe, and writes to it before replacing itself with the rev(1)
+program.  The process talks to itself, obviously limited by pipe
+capacity.
 
 
 ### *stdout* to string
 
-bash(1) **command substitution** replaces `$(command)` by the *stdout*
-produced by running `command`.
+bash(1) **command substitution** replaces `$(command)` with the
+output written by `command` to its *stdout*.
 
     $ ./arg "$(date)"
     argv[0] = ./arg
@@ -1494,24 +1524,25 @@ produced by running `command`.
 
     $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c './arg "$(date)"'
 
-*Between the parenthesis*, write a command as usual.  The quoting
-starts out as **unquoted** wrt. the `command`, which is exactly what
-you'd want to have.
+*Between the parenthesis* of `$(…)`, write a command as usual.  The
+quoting starts out as **unquoted** wrt. the command, which is exactly
+what you'd want to have.
 
-But note, that the output of `command` undergoes word splitting, so
+But note, that the output of the command undergoes word splitting, so
 **proper quoting** of the command substitution is required.
 
-**Do not use** the historical syntax, `` `command` ``.  It is
+**Do not use** the historical syntax, `` `…` ``.  It is
 considered deprecated, does not nest as nicely, is harder to read, and
 treats some characters differently.  But remember to **quote** all
-occurrences of backtics, lest they invoke a command.
+occurrences of backtics you want to use, e.g., in printed messages,
+lest they invoke a command.
 
 
 ### *stdout* to named file
 
 Also, bash(1) **process substitution** uses pipes, supported on
 systems, where a process has its open file descriptors listed under
-`/dev/fd/` (or similar, use namei(1) to find out):
+`/proc/self/fd/` (or similar, use namei(1) to find out):
 
     $ rev <(date)
     1202 TSEC MP 12:40:30 72 nuJ nuS
@@ -1536,34 +1567,139 @@ reveals how a pipe's read end becomes the argument of rev(1):
     …
 
 
-
 Subshells
 =========
 
-    $ echo hello | read x
-    $ echo $x
+“Each command in a pipeline is executed as a separate process”, says
+bash(1).  This can be observerd
 
-    $ read x < <(echo hello)
-    $ echo $x
-    hello
+    $ echo $$
+    8185
 
+    $ ./pid | ./pid
+    pid: PID 8238, PPID 8185
+    pid: PID 8237, PPID 8185
+
+And this is also true, when a command in the pipeline is not an
+executable program, but a shell builtin or compound command instead:
+
+    $ date | if true; then echo "$$" "${BASHPID}"; fi | cat
+    8185 8382
+
+`$BASHPID` expands to the PID of the bash process doing the expansion,
+while `$$` expands to a less well-defined parent shell from within
+subshells, usually the shell in your terminal, or the one running a
+script.
+
+> Actually, documentation is a tad unclear.  According to bash(1),
+> `$$` refers to the “current shell”, and `$BASHPID` to the “current
+> bash process” without clarifying the difference, nor “current”.
+>
+> According to `info '(bash)Special Parameters'`, in a subshell `$$`
+> should expand to the PID of the “invoking shell” — which is slightly
+> more correct, except for *nested* subshells as in
+>
+>     $ echo "$$"; ( echo "$$"; ( echo "$$" ))
+>     8185
+>     8185
+>     8185
+>
+> where the last number —according to the text— should be different.
+>
+> Thinking about this reveals the presence of a not precisely defined
+> concept of a *root shell* that `$$` refers to.  It's probably “the
+> shell thou were typing into”…
+
+Enough nitpicking!
+
+
+Consequences of subshells
+-------------------------
+
+FIXME bash execution context.
+
+### Reading from a command
+
+FIXME `read` builtin.
+
+If a subshell modifies its variables, then this information is **not
+propagated back** to the parent shell:
+
+    $ date | read x
+    $ echo $x
+    bash: x: unbound variable        # if `set -u` is used
+
+or, more sublte:
+
+    $ count=0
+    $ ls *.c | while read name; do echo "$((++count))"; done
+    1
+    2
+    3
+    …
+    17
+    $ echo "$count"
+    0                  # dafuq?
+
+The correct way is to have the counting **variable in the current
+shell** (to be clear: the shell you want to have the modified variable
+in).
+
+    $ count=0
+    $ while read name; do echo "$((++count))"; done < <(ls *.c)
+    1
+    2
+    3
+    …
+    17
+    $ echo "$count"
+    17
+
+Above, the semantics is slightly different: We do not build a
+*pipeline*, but use a *pipe* to read from a subshell running ls(1)
+into the *current shell* evaluating the loop.
+
+
+### Robust reading of directory contents
+
+    $ while IFS= read -r -d '' x; do
+          echo "${x}"
+      done < <( find /tmp -maxdepth 1 -type f -print0 )
+
+Explain
+
+  * Why `IFS=`
+
+  * Why -r
+
+  * Why a space between `-d ''`
+
+  * Why `-print0`
+
+> Note: find(1) prefixes its results with the search path, unless
+> configured otherwise.  If not, a file named `-n` would not be
+> printed by `echo`!  Protect your commands against **file names
+> starting with `-`**, either by using the `--` marker understood by
+> some coreutils (`info '(coreutils)Common options'`), constructing a
+> relative path by prefixing with `./`, or constructing an absolute
+> path:
+>
+>     $ mv -- "${untrustedFilename}" safeFilename  # if `--` is understood…
+>     $ sometool "./${untrustedFilename}"          # …if not
+>     $ printf '%s\n' "${untrustedText}"           # instead of `echo`
+
+Much better and extensive examples can be found in the [BashPitfalls](https://mywiki.wooledge.org/BashPitfalls) wiki.
+
+____________________
 TODO
-
-  * while read …; do …; done < <(…)
 
   * builtin `mapfile` (aka. `readarray`)
 
-  * $BASHPID ./. $$
-
   * `xargs`
-
-
-______________________________________________________________________
-TODO
 
   * closing file descriptors, or using exec for the shell's own redirections
 
-  * `$@`, `$*`, `( "$@" )`
+  * `$@`, `$*`, `arr=( "$@" )`
 
   * to $HOME or ${HOME}
 
