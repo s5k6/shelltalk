@@ -77,9 +77,9 @@ int main(int argc, char **argv) {
         else if (WIFSIGNALED(status))
             warnx("Child %d caught %d", pid, WTERMSIG(status));
         else
-            warnx("Child %d terminated", pid);
+            warnx("Dunno why child %d terminated", pid);
     };
-    if (errno != ECHILD)
+    if (errno != ECHILD) // no unwaited-for children
         err(1, "wait");
 
     return 0;

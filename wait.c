@@ -40,13 +40,14 @@ int main(int argc, char **argv) {
     if (pid < 0)
         err(1, "wait");
 
-
     /* Analyse and print exit status.
     */
     if (WIFEXITED(status))
-        warnx("Child %u has returned %d", pid, WEXITSTATUS(status));
+        warnx("Child %d returned %d", pid, WEXITSTATUS(status));
+    else if (WIFSIGNALED(status))
+        warnx("Child %d caught %d", pid, WTERMSIG(status));
     else
-        warnx("Other status change on %u", pid);
+        warnx("Dunno why child %d terminated", pid);
 
 
     return 0;

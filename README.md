@@ -693,6 +693,17 @@ index:
     …
 
 
+* * *
+
+
+**Note:** Quoting alone may not be enough to protect a command
+invocation against adding unintended flags and options.  See
+[Filenames with leading
+dashes](https://mywiki.wooledge.org/BashPitfalls#Filenames_with_leading_dashes)
+in the highly recommended collection of [Bash
+Pitfalls](https://mywiki.wooledge.org/BashPitfalls).
+
+
 Shell scripts
 =============
 
@@ -859,7 +870,8 @@ The tools ps(1) and top(1) can be used to inspect the process table.
 > due to containerisation, but this is outside the scope of this text.
 
 The shell provides variables to inspect its PID (`$$`) and its parents
-PID (`$PPID`).  But be careful, `$$` **may lie to you**, see below.
+PID (`$PPID`).  But be careful, `$$` **may give unexpected results**,
+see below.
 
     $ echo "PID $$, PPID $PPID"
     PID 10566, PPID 10561
@@ -997,10 +1009,10 @@ change, see [wait.c](wait.c).
 >
 >     $ strace -e trace=%process -olog -f bash -c 'sleep 3& date'
 >
-> Note 1: The shell will not terminat right away, because it waits for
-> its children before termination.  But you'll see the date(1) printed
-> immediately, proving the sleep(1) to run in the background of the
-> shell.
+> Note 1: The shell will not terminate right away, because it waits
+> for its children before termination.  But you'll see the date(1)
+> printed immediately, proving the sleep(1) to run in the background
+> of the shell.
 >
 > Note 2: wait(2) may actually be a frontend to wait4(2).  I’ll stick
 > to writing “wait” for simplicity, but expect strace(1) to report
@@ -1014,13 +1026,13 @@ If a child process dies, it becomes a **zombie** until…
   * …its exit status is collected by the parent via wait(2) & Co., or
 
   * …its parent dies and the zombie is adopted by `init` which
-    implicitly performs the wait, a process called “reaping”, which is
-    why `init` is also referred to as **reaper**.  There may be
-    **sub-reapers**, see pid_namespaces(7).
+    implicitly performs the wait(2) — a process called “reaping”,
+    which is why `init` is also referred to as **reaper**.  There may
+    be **sub-reapers**, see pid_namespaces(7).
 
 The OS must maintain the exit status of a child for retrieval by its
 parent (while the reaper don't care).  Thus, under a long-living
-parent, zombies may amass and pollute the process table.
+parent, zombies may amass and fill the process table.
 
 ⇒ Wait for your children lest they become zombies.
 
@@ -1074,14 +1086,14 @@ Redirection
 As example, the following command should print the listing of one
 file to *stdout*, and an error message to *stderr*:
 
-    $ ls README.md noSuchFile
-    ls: cannot access 'noSuchFile': No such file or directory
+    $ ls README.md /noSuchFile
+    ls: cannot access '/noSuchFile': No such file or directory
     README.md
 
 Use `1>` (or the shorthand `>`) to write *stdout* to a file:
 
-    $ ls README.md noSuchFile 1> file1
-    ls: cannot access 'noSuchFile': No such file or directory
+    $ ls README.md /noSuchFile 1> file1
+    ls: cannot access '/noSuchFile': No such file or directory
 
     $ cat file1
     README.md
@@ -1097,11 +1109,11 @@ invoked command:
 
 Use `2>` to write *stderr* to a file:
 
-    $ ls README.md noSuchFile 2> file2
+    $ ls README.md /noSuchFile 2> file2
     README.md
 
     $ cat file2
-    ls: cannot access 'noSuchFile': No such file or directory
+    ls: cannot access '/noSuchFile': No such file or directory
 
 Similarly, use `0<` (or the shorthand `<`) to read *stdin* from a
 file:
@@ -1111,7 +1123,7 @@ file:
 
 What about using `42>`?
 
-    $ ls README.md noSuchFile 42> file42
+    $ ls README.md /noSuchFile 42> file42
     $ ls -l file42
 
 What do the numbers (0 for *stdin*, 1 for *stdout*, 2 for *stderr*, 42
@@ -1221,7 +1233,7 @@ descript**or**, using dup2(2), [dup2.c](dup2.c):
 So redirection from/to files simply makes the shell open these files
 in read/write mode, and assigns the expected file descriptors.
 
-Use cat(1) redirecting *stdin* and *stdout* to copy a file:
+Use cat(1) and redirecting *stdin* and *stdout* to copy a file:
 
     $ cat < lorem.txt > foo
     $ cat foo
@@ -1302,7 +1314,7 @@ It is generally wrong to redirect stderr and stdout to the same file:
 
 And we can explain why: Both redirections, `1>` and `2>` make the
 shell call open(2), so we'll have **two different** open file
-descript**ions**, not sharing a common file offset for writing:
+descript**ions**, *not sharing* a common file offset for writing:
 
     $ strace -olog -f bash -c 'ls -l README.md /noSuchFile 1>file12 2>file12'
     $ grep -A2 file12 log
@@ -1350,7 +1362,7 @@ with
     README.md
 
 and think about the order of the system calls `open`, `close` and
-`dup2` involved.
+`dup2` involved.  (See [solution1](solution1.md))
 
 
 ### The shell's current open files
@@ -1365,27 +1377,14 @@ redirections take effect in the current shell.
     $ cat log >&2
     Sat Jun 26 04:54:24 PM CEST 2021
 
-One may even use the file descriptor returned by open(2), and assign
-it to a shell variable, which gives a pretty direct interface to
-open(2) and close(2).  Search bash(1) for `>&-` for more information.
+FIXME talk about closing file descriptors with `exec 23>&-`.
 
-FIXME talk about file descriptors bound to shell variables, as in
-`{fd}>filename`.
-
-
-### Swapping *stdout* and *stderr*
-
-FIXME maybe move this to sommand substitution section
-
-    $ foo 3>&1 1>&2 2>&3 3>&-
-
-You may want this in a pipeline (or command substitution), where only
-*stdout* of a command is forwarded (or used), and *stderr* is not.
-Also makes a great interview question.  The `3>&-` simply calls
-close(2) on file descriptor 3.
-
-> Also a nice question: Assuming there's an open file descriptor 5,
-> what's the difference between the redirections `2>&5` and `2<&5`?
+> Bash allows to use the file descriptor returned by open(2), and
+> assign it to a shell variable, which gives a pretty direct interface
+> to open(2) and close(2).  The syntax is `{fd}>filename`, binding
+> `$fd` to the file descriptor returned by `open("filename", …)`.
+> Search bash(1) for `>&-` for more information.  **Note**, that this
+> is not available in older versions.
 
 
 Connecting processes
@@ -1395,7 +1394,7 @@ Pipelines
 ---------
 
 A **pipeline** is a sequence of one or more *commands* separated by
-the pipe `|` control operator.  (paraphrased from bash(1))
+the pipe `|` control operator.
 
 > Above is paraphrased from bash(1).  Search bash(1) for “SHELL
 > GRAMMAR” to get the complete picture.
@@ -1423,6 +1422,27 @@ file descriptor 1 of the former command is connected to file descriptor
 0 of the latter.
 
 
+### Swapping *stdout* and *stderr*
+
+Only *stdout* of a command is forwarded in a pipe (or used in a
+command substitution or process substitution, see below), but *stderr*
+is not.
+
+What if you want to pipe a commands *stderr* into another command,
+e.g., to count its error messages?
+
+    $ foo 3>&1 1>&2 2>&3 3>&- | bar
+
+The `3>&-` simply calls close(2) on file descriptor 3, so that the
+program `foo` does not see (and hand down to its children) an open
+file descriptor 3, keeping alive an unneeded open file description.
+
+> This makes a great interview question.  Also a nice question:
+> Assuming there's an open file descriptor 5, what's the difference
+> between the redirections `2>&5` and `2<&5`?
+
+
+
 Pipes are an OS feature
 -----------------------
 
@@ -1441,7 +1461,7 @@ Combined with our knowledge of exec(3) and dup2(2), this extends to
 building pipelines.  We create a separate child for reading and
 writing, [pipeline.c](pipeline.c)…
 
-    $ ./pipeline data rev
+    $ ./pipeline date rev
     1202 TSEC MP 34:63:10 72 nuJ nuS
 
 …as the shell does:
@@ -1492,9 +1512,9 @@ concept).
 **Note**: Unless documented (search bash(1) for “subshell”), the
 precise arrangement of processes, whether and when a child is created,
 and of which parent, is an *implementation detail* of the shell.  Do
-not assume the structure revealed by strace(1) to be applicable to all
-situations.  We'll discuss some relevant artefacts of subshells in the
-next section.
+not assume the structure revealed by strace(1) to be applicable to
+other situations.  We'll discuss some relevant artefacts of subshells
+in the next section.
 
 
 ### Literal text to *stdin*
@@ -1600,15 +1620,19 @@ script.
 > more correct, except for *nested* subshells as in
 >
 >     $ echo "$$"; ( echo "$$"; ( echo "$$" ))
->     8185
->     8185
->     8185
+>     4488
+>     4488
+>     4488
 >
-> where the last number —according to the text— should be different.
+> where the last number —according to the text— should be different,
+> as an strace(1) reveals:
+>
+>     4488  clone(…) = 4489
+>     4489  clone(…) = 4490
 >
 > Thinking about this reveals the presence of a not precisely defined
-> concept of a *root shell* that `$$` refers to.  It's probably “the
-> shell thou were typing into”…
+> concept of a *main shell* that `$$` refers to.  It's probably “the
+> shell thou typeth into”…
 
 Enough nitpicking!
 
@@ -1616,7 +1640,8 @@ Enough nitpicking!
 Consequences of subshells
 -------------------------
 
-FIXME bash execution context.
+FIXME bash execution context.  Builtins may modify this, read →
+variable, cd → pwd, …
 
 ### Reading from a command
 
