@@ -484,17 +484,23 @@ The shell's special **metacharacters** are space, tab, and
         argv[6] = \        # weakly quoted escaped backslash
         argv[7] = \'       # weakly quoted backslash and a single quote
 
-  * More exotic variations: Text of the form `$'…'` replaces
-    `\`-escaped characters as known from ANSI C, e.g., `\n` and `\t`
-    become newline and tab.  And `$"…"` is supposed to invoke
-    translation according to the current locale.
+  * More exotic variations:
 
-        $ ./arg $'foo\tbar\nqux\'tux'
+    In an unquoted context, `$'…'` introduces a strong quoting style
+    which interprets `\`-escaped characters as known from ANSI C,
+    e.g., `\n` and `\t` become newline and tab.
+
+        $ ./arg $'foo\tbar\n\'\n${HOME}'
         argv[0] = ./arg
         argv[1] = foo   bar
-        qux'tux
+        '
+        ${HOME}
 
-Confused?  There's a simple mental model to quoting on the shell:
+    And `$"…"` is supposed to invoke translation according to the
+    current locale.
+
+Confused?  There's a simple mental model to escaping, weak and strong
+quoting on the shell:
 
 
 ### Not “string literals” but “quoting toggles”
@@ -508,7 +514,7 @@ then:
 
   * An unquoted…
 
-      - …backslash `\` escapes the next character, or deletes a
+      - …backslash `\` escapes the next character, or skips a
         directly following newline,
 
       - …single quote `'` switches on strong quoting,
@@ -800,7 +806,7 @@ Advice
     depends on the location of env(1), and the value of `$PATH`, both
     of which counteract portability.
 
-  * Always aiming for **portability is a misguided objective**.
+  * Always **aiming for portability is a misguided objective**.
 
     Shell scripts typically utilise avaliable system tools,
     e.g. sed(1), which already differs between unixoid systems (`-E`
@@ -825,10 +831,10 @@ Advice
 
         #!/bin/bash
         set -u -e -C
-        shopt -s failglob
+        shopt -s failglob nullglob
 
     Then, deviate as needed, e.g., adjusting `failglob` and `nullglob`
-    mid-script for a tool that needs this.
+    mid-script as required.
 
   * A **stub** for your `~/.bashrc`:
 
@@ -875,8 +881,6 @@ see below.
 
     $ echo "PID $$, PPID $PPID"
     PID 10566, PPID 10561
-    $ echo "PID $$, PPID $PPID"
-    PID 10566, PPID 10561          # same result, `echo` is a shell builtin
 
 A program can inspect its own and its parent's PID using the system
 calls getpid(2) and getppid(2), see [pid.c](pid.c).
@@ -918,7 +922,9 @@ Example [exec.c](exec.c)
     exec: PID 95889, about to run pid
     pid: PID 95889, PPID 95362
 
-Note: `pid` sports the same PID as `exec`, so it has replaced it!
+Note: `pid` sports the same PID as `exec`, so it is the same process
+executing the program `exec` first, and the program `pid` second.  The
+program executed in the process has been replaced!
 
 The shell provides an `exec` builtin:
 
@@ -1068,15 +1074,15 @@ Each Unix process initially is connected to three data streams:
     in your terminal, interleaved with *stdout*.
 
 E.g., cat(1) copies *stdin* to *stdout* if no arguments are given.
-Pressing C-d (Ctrl+D, ^D) signals end of input.
+Pressing C-d (aka. Ctrl+D, ^D) signals end of input.
 
     $ cat
     dog
     dog
 
 > The fact that I/O appears line by line is a result of buffering in
-> the *line discipline* of the terminal driver, just *slightly* out of
-> scope here… ;-)
+> the *line discipline* of the terminal driver, a topic just
+> *slightly* out of scope here… ;-)
 
 
 
@@ -1187,14 +1193,14 @@ So somehow the file `file5` was opened for writing, and the file
 descriptor 5 was made available to the newly run program.
 
 How does the shell do that?  We already know how to get a file
-descriptor from open(2), but here we
+descriptor from open(2).  But here, the shell needs to
 
-  * control the file descriptor (5) returned by open(2), and
+ 1. communicate an open file descriptor to a child process, and
 
-  * communicate an open file descriptor to a child process.
+ 2. control the file descriptor (5) returned by open(2).
 
 
-### Open file descriptors are shared on fork(2)
+### (1) Open file descriptors are shared on fork(2)
 
 Example [sharedfd.c](sharedfd.c)
 
@@ -1215,7 +1221,7 @@ times.
 > “Bugs” sections in read(2) and write(2).
 
 
-### Make sure a file is opened with file descriptor 2
+### (2) Make sure a file is opened with file descriptor 2
 
 We cannot do this, but we *can* assign an open file descript**ion**
 (referenced by its file descript**or**) to another file
@@ -1533,7 +1539,7 @@ program.  The process talks to itself, obviously limited by pipe
 capacity.
 
 
-### *stdout* to string
+### *stdout* to text
 
 bash(1) **command substitution** replaces `$(command)` with the
 output written by `command` to its *stdout*.
