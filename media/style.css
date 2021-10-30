@@ -26,16 +26,23 @@ figure {
 figcaption {
     text-align: center;
     font-size: 85%;
-    border-top: 1px solid black;
 }
 img {
     max-width: 90%;
 }
-
-h1, h2, h3 {
-    margin-top: 2em;
-    margin-bottom: 0em;
+p {
+    margin: 1em 0;
 }
+header h1 {
+    font-size: xxx-large;
+    text-decoration: none;
+}
+h1, h2, h3 {
+    margin-top: 2.5em;
+    margin-bottom: 1em;
+}
+h1 + h2 { margin-top: 0em; }
+h2 + h3 { margin-top: 0em; }
 h1 {
     text-decoration-line: underline;
     text-decoration-style: double;

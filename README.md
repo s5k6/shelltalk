@@ -14,7 +14,7 @@ You should have a little shell and C experience to enjoy this.
 
 This is not a shell scripting course.  There are better and more
 extensive texts, and my scripting is far from perfect.  **Do have a
-look at** these:
+look** at these:
 
   * [The Grymoire](https://www.grymoire.com/Unix/index.html)
 
@@ -462,7 +462,7 @@ The shell's special **metacharacters** are space, tab, and
   * Double quotes `"·"` preserve the literal values of *most* of the
     enclosed characters.  That's why it's called **weak quoting**.
 
-    Exceptions are `"`, `$`, `‘`, and the *now quoted* `\`.
+    Exceptions are `"`, `$`, `` ` ``, and the *now quoted* `\`.
 
         $ ./arg "home is ${HOME}"
         argv[0] = ./arg
@@ -528,7 +528,7 @@ then:
       - …double quote `"` ends weak quoting.
 
       - …backslash `\` removes any special meaning from a following
-        `"`, `$`, `‘`, or `\`.
+        `"`, `$`, `` ` ``, or `\`.
 
 This simplifies writing a parser to a pretty straight forward state
 machine, and also allows to **switch the quoting style** on the fly,
@@ -1560,7 +1560,7 @@ But note, that the output of the command undergoes word splitting, so
 **Do not use** the historical syntax, `` `…` ``.  It is
 considered deprecated, does not nest as nicely, is harder to read, and
 treats some characters differently.  But remember to **quote** all
-occurrences of backtics you want to use, e.g., in printed messages,
+occurrences of backticks you want to use, e.g., in printed messages,
 lest they invoke a command.
 
 
