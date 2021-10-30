@@ -564,6 +564,14 @@ as needed:
 > the shell introduce quoting for further use, use `printf %q`, see
 > bash(1).
 
+> Recently, I've seen someone suggest
+>
+>     $ find ./logs -name *.log -mtime +30 -delete
+>
+> to delete old log files from `./logs`.  The command worked well for
+> him when testing.  So, what's wrong? — It's a couple of things,
+> cf. [solution2](solution2.md).
+
 
 Seven kinds of expansion
 ------------------------
