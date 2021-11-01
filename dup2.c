@@ -2,6 +2,8 @@
 #include <err.h>
 #include <unistd.h>
 
+#define FILENAME "dup2.out"
+
 
 int main(void) {
 
@@ -11,11 +13,11 @@ int main(void) {
 
 
     // open a file, gives some file descriptor
-    int fd = open("output", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    int fd = open(FILENAME, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0)
         err(1, "open");
 
-    warnx("open returned file descriptor %d", fd);  // writes to stderr
+    warnx("open(\"" FILENAME "\") returned %d", fd);  // writes to stderr
 
     // close original stdout 1, and make it an alias of fd
     if (dup2(fd, 1) < 0)

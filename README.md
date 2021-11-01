@@ -1156,11 +1156,11 @@ Usually, one would open(2) a file, before reading or writing, see
 
     $ strace -e trace=%file,write ./open
     …
-    openat(AT_FDCWD, "output", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    openat(AT_FDCWD, "open.out", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
     write(3, "Hello named file\n", 17)      = 17
     …
 
-    $ cat output
+    $ cat open.out
     Hello named file
 
 open(2) and similar system calls return a **file descriptor**, which
@@ -1199,6 +1199,7 @@ without opening any files:
 
     $ ./write 5 5> file5
     write: Using file descriptor 5.
+
     $ cat file5
     play the kazoo
 
@@ -1223,8 +1224,9 @@ dup2(2) — [dup2.c](dup2.c):
 
     $ ./dup2
     knock knock
-    dup2: open("output", ...) = FD 3
-    $ cat output
+    dup2: open("dup2.out") returned 3
+
+    $ cat dup2.out
     who's there
 
 
@@ -1311,8 +1313,9 @@ Notes and conclusions
 Example [fdfork.c](fdfork.c):
 
     $ ./fdfork
-    fdfork: Writing to file: output
-    $ cat output
+    fdfork: Writing to file: fdfork.out
+
+    $ cat fdfork.out
     I am the parent
     I am the child
 
@@ -1761,7 +1764,9 @@ Much better and extensive examples can be found in the
 [BashPitfalls][2] wiki.
 
 ____________________
+
 TODO
+====
 
   * bash's coprocesses
 
@@ -1788,7 +1793,21 @@ TODO
     C-d makes it flush stdin.  Write your own `cat`.
 
 
-Further Reading:
+Leftovers
+---------
+
+  * [closedup.c](closedup.c) demonstrates closing on duplicated file
+    descriptor.
+
+  * [conflict.c](conflict.c) demonstrates conflicting write to file
+    opened twice.
+
+  * [redirect.c](redirect.c) demonstrates redirection of child' stdout
+    to file.
+
+
+Further Reading
+---------------
 
   * https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09
 
