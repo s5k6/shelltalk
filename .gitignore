@@ -21,10 +21,12 @@ output
 pid
 redirecStdout
 redirect
-sharedfd
 tofd
 wait
 write
 pipe
 pipeline
 errors
+fdexec
+fdfork
+*.out

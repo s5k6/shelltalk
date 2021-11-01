@@ -1,19 +1,33 @@
 #include <unistd.h>
 #include <err.h>
-
-int main(void) {
-
-    int fd = 5;
-
-    ssize_t n;
+#include <stdlib.h>
 
 
-    /* Just write to FD 5, without opening it first
-    */
-    n = write(fd, "play the kazoo\n", 15);
+int main(int argc, char **argv) {
 
-    if (n < 0)
-      err(1, "write to file descriptor %d failed", fd);
+
+    /* Get file descriptor from first argument.  See strtol(3) for
+       conversion. */
+
+    if (argc < 2)
+        errx(1, "pass file descriptor as argument");
+
+    char *end = argv[1];
+    int fd = (int)strtol(argv[1], &end, 10);
+    if (end == argv[1] || *end != '\0')
+        errx(1, "Invalid argument");
+
+    warnx("Using file descriptor %d.", fd);
+
+
+    /* Just write to given file descriptor, without opening a file
+       first. */
+
+    ssize_t n = write(fd, "play the kazoo\n", 15);
+
+    if (n < 15)
+      err(1, "Write to file descriptor %d failed", fd);
+
 
     return 0;
 }

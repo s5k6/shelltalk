@@ -16,19 +16,16 @@ This is not a shell scripting course.  There are better and more
 extensive texts, and my scripting is far from perfect.  **Do have a
 look** at these:
 
-  * [The Grymoire](https://www.grymoire.com/Unix/index.html)
+  * [The Grymoire][1]
 
-  * [Bash Pitfalls](https://mywiki.wooledge.org/BashPitfalls)
+  * [Bash Pitfalls][2]
 
 > This text is feeding on some Shell stuff taken from a [beginners
-> lecture](https://stefan-klinger.de/files/sq_15w.pdf), and some Linux
-> Systems Programming stuff taken from a third semester [C
-> course](https://stefan-klinger.de/files/pk3_15w.pdf), both of which
-> I've had the joy to deliver repeatedly at U'KN.  (Unfortunately,
-> for…  administrative reasons, the C course degraded over the years,
-> and I haven't found the time to unearth the better versions.  You'll
-> find better ones).
-
+> lecture][4a], and some Linux Systems Programming stuff taken from a
+> third semester [C course][4b], both of which I've had the joy to
+> deliver repeatedly at U'KN.  (Unfortunately, for…  *administrative*
+> reasons, the C course degraded over the years, and I haven't found
+> the time to unearth the better versions.  You'll find better ones).
 
 
 ### Warning — Do not use the examples
@@ -328,7 +325,7 @@ The character `*` matches any sequence of characters, `?` Matches any single
 character, and `[`*list*`]` matches any single character in the *list*.
 
     $ ls *.c
-    arg.c         closedup.c  dup2.c  fork.c  pid.c       sharedfd.c
+    arg.c         closedup.c  dup2.c  fork.c  pid.c       fdfork.c
     background.c  conflict.c  exec.c  open.c  redirect.c  write.c
 
 **Note**: The expansion is done *by the shell*, not by the program
@@ -564,13 +561,13 @@ as needed:
 > the shell introduce quoting for further use, use `printf %q`, see
 > bash(1).
 
-> Recently, I've seen someone suggest
->
->     $ find ./logs -name *.log -mtime +30 -delete
->
-> to delete old log files from `./logs`.  The command worked well for
-> him when testing.  So, what's wrong? — It's a couple of things,
-> cf. [solution2](solution2.md).
+**Question:** Recently, I've seen someone suggest
+
+    $ find ./logs -name *.log -mtime +30 -delete
+
+to delete old log files from `./logs`.  The command worked well for
+him when testing.  So, what's wrong? — It's a couple of things,
+cf. [solution2](solution2.md).
 
 
 Seven kinds of expansion
@@ -635,10 +632,10 @@ variable (defaulting to `$' \t\n'`):
 Always quote your variables
 ---------------------------
 
-> The web is full of information on how missing quotes introduce
-> trouble, particularly detailed is a [Stack Exchange
-> post](https://unix.stackexchange.com/questions/171346), which was
-> the source of the following examples
+The web is full of information on how missing quotes introduce
+trouble, particularly detailed is a [Stack Exchange
+post](https://unix.stackexchange.com/questions/171346), which was the
+source of the following examples
 
 
 ### Information disclosure
@@ -707,15 +704,21 @@ index:
     …
 
 
-* * *
+### Quoting alone may not suffice
 
+Quoting alone may not be enough to protect a command invocation
+against unintended effects.  E.g., [filenames with leading
+dashes][2a] might be interpreted as flags by a program.
 
-**Note:** Quoting alone may not be enough to protect a command
-invocation against adding unintended flags and options.  See
-[Filenames with leading
-dashes](https://mywiki.wooledge.org/BashPitfalls#Filenames_with_leading_dashes)
-in the highly recommended collection of [Bash
-Pitfalls](https://mywiki.wooledge.org/BashPitfalls).
+Some programs use the `--` marker to denote “end of options”, i.e.,
+everything that follows is used as a filename (`info
+'(coreutils)Common options'`).  For other programs, resort to
+prefixing the file with `./`, or construct an absolute path.  For
+non-file arguments, other means may be necessary:
+
+    $ mv -- "${untrustedFilename}"
+    $ sometool "./${untrustedFilename}"    # if `--` is not understood
+    $ printf '%s\n' "${untrustedText}"     # instead of `echo`
 
 
 Shell scripts
@@ -796,8 +799,7 @@ Advice
     This is a poor man's namespace segregation: Though there's no
     technical need, *environment variables* tend to be uppercase-only.
     So lowercase variables decrease your chance to overwrite one
-    (which is described in [The Open Group Base
-    Specifications](https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap08.html)).
+    (which is described in [The Open Group Base Specifications][3]).
 
   * The **shebang** is `#!/bin/bash`.
 
@@ -984,8 +986,8 @@ called (PID 12133).  The last line is printed by the new child (PID
 > vfork(2) for more alternatives.
 
 
-Fork a child, then replace it
------------------------------
+The fork/exec pattern
+---------------------
 
 Example [background.c](background.c):
 
@@ -1188,12 +1190,15 @@ from file descriptor 0.  We redirect this from a file:
     …
 
 This also works with write(2) in the other direction:
-[write.c](write.c) writes to a file descriptor without opening it:
+[write.c](write.c) writes to a file descriptor passed as argument,
+without opening any files:
 
-    $ ./write
-    write: write to file descriptor 5 failed: Bad file descriptor
+    $ ./write 5
+    write: Using file descriptor 5.
+    write: Write to file descriptor 5 failed: Bad file descriptor
 
-    $ ./write 5> file5
+    $ ./write 5 5> file5
+    write: Using file descriptor 5.
     $ cat file5
     play the kazoo
 
@@ -1203,37 +1208,18 @@ descriptor 5 was made available to the newly run program.
 How does the shell do that?  We already know how to get a file
 descriptor from open(2).  But here, the shell needs to
 
- 1. communicate an open file descriptor to a child process, and
+ 1. control the file descriptor returned by open(2), because *we* want
+    it to be 5, and
 
- 2. control the file descriptor (5) returned by open(2).
-
-
-### (1) Open file descriptors are shared on fork(2)
-
-Example [sharedfd.c](sharedfd.c)
-
-    $ ./sharedfd
-    sharedfd: Writing to file: output
-    $ cat output
-    I am the parent
-    I am the child
-
-Note: Both processes share the write offset in the file, which is part
-of the open file description.
-
-Optional: Demonstrate a race condition by repeating each write 100
-times.
+ 2. communicate an open file descriptor to a new program, `./write` in
+    this case.
 
 
-> Historical note: This was not the case in Linux before 3.14, see the
-> “Bugs” sections in read(2) and write(2).
-
-
-### (2) Make sure a file is opened with file descriptor 2
+### Make sure a file is opened with given file descriptor
 
 We cannot do this, but we *can* assign an open file descript**ion**
-(referenced by its file descript**or**) to another file
-descript**or**, using dup2(2), [dup2.c](dup2.c):
+(referenced by its file descriptor) to another file descriptor, using
+dup2(2) — [dup2.c](dup2.c):
 
     $ ./dup2
     knock knock
@@ -1242,10 +1228,28 @@ descript**or**, using dup2(2), [dup2.c](dup2.c):
     who's there
 
 
-### Summary: redirection to/from files
+### Open file descriptors survive execve(2)
+
+Open files are a property of the process, not the program.  By default
+(cf. `FD_CLOEXEC` in fcntl(2)), they remain open across a call to
+execve(2).
+
+Example [fdexec.c](fdexec.c):
+
+    $ ./fdexec
+    fdexec: open("fdexec.out") returned 3
+    write: Using file descriptor 3.
+    $ cat fdexec.out
+    play the kazoo
+
+`fdexec` opens the file, then replaces itself with [write](write.c),
+passing the file descriptor as command line argument.
+
+
+### Summary: redirection with files
 
 So redirection from/to files simply makes the shell open these files
-in read/write mode, and assigns the expected file descriptors.
+in read/write mode, and assigns them to the expected file descriptors.
 
 Use cat(1) and redirecting *stdin* and *stdout* to copy a file:
 
@@ -1268,7 +1272,7 @@ shell and its child:
 
 The shell (PID 35958) has created a child (PID 35959) and waits for a
 status change with wait4(2).  The child is still running `bash`'s code
-and is now setting file descriptors:
+and is now setting up the file descriptors:
 
     …
     35959 openat(AT_FDCWD, "lorem.txt", O_RDONLY) = 3
@@ -1288,7 +1292,12 @@ Then the child replaces itself with cat(1), which does the copying:
     35959 read(0, "", 131072)               = 0
     …
 
-The shell collects the child's exit code.
+The newly loaded program cat(1) started its live in an environment
+with correctly set up file descriptors.  Hence, the shell did not
+communicate file contents to/from cat(1), but rather handed the open
+file descriptors to it.
+
+After copying, the shell collects the child's exit code.
 
     …
     35958 <... wait4 resumed>…, 0, NULL) = 35959
@@ -1296,6 +1305,26 @@ The shell collects the child's exit code.
 
 Notes and conclusions
 ---------------------
+
+### Open file descriptors are also shared on fork(2)
+
+Example [fdfork.c](fdfork.c):
+
+    $ ./fdfork
+    fdfork: Writing to file: output
+    $ cat output
+    I am the parent
+    I am the child
+
+Note: Both processes share the write offset in the file, which is part
+of the open file description.
+
+Optional: Demonstrate a race condition by repeating each write 100
+times.
+
+> Historical note: This was not the case in Linux before 3.14, see the
+> “Bugs” sections in read(2) and write(2).
+
 
 ### The flags passed to open(2)
 
@@ -1357,8 +1386,7 @@ significant.  The shell just parses and applies the redirections from
 left to right, starting from the assignment of *stdin* 0, *stdout* 1,
 *stderr* 2.
 
-![[Key Competence in Computer Science, Winter
- 2015](https://stefan-klinger.de/files/sq_15w.pdf), page
+![[Key Competence in Computer Science, Winter 2015][4a], page
  113](media/sq_15w_113.png)
 
 Compare
@@ -1393,16 +1421,27 @@ redirections take effect in the current shell.
 
 FIXME talk about closing file descriptors with `exec 23>&-`.
 
-> Bash allows to use the file descriptor returned by open(2), and
-> assign it to a shell variable, which gives a pretty direct interface
-> to open(2) and close(2).  The syntax is `{fd}>filename`, binding
-> `$fd` to the file descriptor returned by `open("filename", …)`.
-> Search bash(1) for `>&-` for more information.  **Note**, that this
-> is not available in older versions.
+> Bash 5.1 (FIXME: maybe earlier) allows to use the file descriptor
+> returned by open(2), and assign it to a shell variable, which gives
+> a pretty direct interface to open(2) and close(2).  The syntax is
+> `{fd}>filename`, binding `$fd` to the file descriptor returned by
+> `open("filename", …)`.  Search bash(1) for `>&-` for more
+> information.  **Note**, that this is not available in older
+> versions.
 
 
 Connecting processes
 ====================
+
+Getting data from one process to another is generally termed [inter
+process communication][5] (IPC).  The needs are diverse, and an
+operating system typically offers different means to different ends:
+From two processes alternatingly using the same file, to signals,
+semaphores, shared memory, pipelines, and network sockets.
+
+Here, we only talk about pipelines.  Any good operating system lecture
+should present the others as well.
+
 
 Pipelines
 ---------
@@ -1715,22 +1754,16 @@ Explain
 
   * Why `-print0`
 
-> Note: find(1) prefixes its results with the search path, unless
-> configured otherwise.  If not, a file named `-n` would not be
-> printed by `echo`!  Protect your commands against **file names
-> starting with `-`**, either by using the `--` marker understood by
-> some coreutils (`info '(coreutils)Common options'`), constructing a
-> relative path by prefixing with `./`, or constructing an absolute
-> path:
->
->     $ mv -- "${untrustedFilename}" safeFilename  # if `--` is understood…
->     $ sometool "./${untrustedFilename}"          # …if not
->     $ printf '%s\n' "${untrustedText}"           # instead of `echo`
+To protect against file names with leading dashes, find(1) prefixes
+its results with the search path even if it's just `./`.
 
-Much better and extensive examples can be found in the [BashPitfalls](https://mywiki.wooledge.org/BashPitfalls) wiki.
+Much better and extensive examples can be found in the
+[BashPitfalls][2] wiki.
 
 ____________________
 TODO
+
+  * bash's coprocesses
 
   * builtin `mapfile` (aka. `readarray`)
 
@@ -1757,6 +1790,14 @@ TODO
 
 Further Reading:
 
-  * https://mywiki.wooledge.org/BashPitfalls
-
   * https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09
+
+
+
+[1]: https://www.grymoire.com/Unix/index.html
+[2]: https://mywiki.wooledge.org/BashPitfalls
+[2a]: https://mywiki.wooledge.org/BashPitfalls#Filenames_with_leading_dashes
+[3]: https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap08.html
+[4a]: https://stefan-klinger.de/files/sq_15w.pdf
+[4b]: https://stefan-klinger.de/files/pk3_15w.pdf
+[5]: https://en.wikipedia.org/wiki/Inter-process_communication
