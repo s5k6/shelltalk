@@ -1,0 +1,99 @@
+To Do
+-----
+
+  * As an example of process setup being an implementation detail of
+    the shell, see the handling of the environment.  The following
+    produces no output in bash 5.2.21:
+
+        $ cat </proc/self/environ
+
+    This is nicely explained here:
+
+        https://unix.stackexchange.com/questions/467169/strange-behavior-of-proc-self-environ-in-some-shells-what-is-going-on#answer-467216
+
+
+
+is in a shell, and that
+
+
+Scripting Talk
+--------------
+
+    https://superuser.com/questions/775330/convert-large-markdown-single-file-to-multiple-html
+
+    $ bash --version
+    GNU bash, version 5.1.8(1)-release (x86_64-pc-linux-gnu)
+
+Topics:
+
+  * READ
+
+        https://mywiki.wooledge.org/BashGuide/Practices#Choose_Your_Shell
+
+        $ printf '%q\n' "-${IFS}-"
+
+  * bad
+
+        dir='/home/foo/'
+        cat "${dir}bar"
+
+  * quoting
+
+  * Spaces in filenames.
+
+  * File names that start with `-` and `./-`
+
+  * All kinds of quoting
+
+        \…
+        '…'
+        "…"
+        $'…'
+
+  * All kinds of redirection, flip streams, the file `<(...)`
+
+        <<.
+        <<'.'
+        <<< '…'
+
+  * Substitution, `$(…)` vs ``…``
+
+        https://stackoverflow.com/questions/3427872
+        https://mywiki.wooledge.org/BashGuide/Practices#Bash_Tests
+
+  * Parameter expansion, `${name%.txt}`, `${name##*/}`
+
+  * Subshells, PID and BASH_PID
+
+  * C-c vs. C-d, relation to `read`
+
+  * No passwords as CLI arguments.
+
+  * How not to `read`
+
+        $ find "${somepath}" -maxdepth 1 -mindepth 1 -print0 \
+          | while read d; do
+              printf ">>> ${d}\n"
+            done
+
+    instead:
+
+        $ mapfile -d '' ds < <(
+              find "${somepath}" -maxdepth 1 -mindepth 1 -print0
+          )
+          for d in "${ds[@]}"; do
+              printf ">>> ${d}\n"
+          done
+
+        $ while read -r -d '' i; do
+              printf ">>> ${i}\n"
+          done < <(
+              find "${somepath}" -maxdepth 1 -mindepth 1 -print0
+          )
+
+  * Decide on `set -u -e -C` and `shopt -s nullglob`.
+
+        $ rm ~/foo{,_bar}/*.{data,index}
+
+  * File name conventions: Spaces on Linux, Unicode encoding, case on
+    Mac.

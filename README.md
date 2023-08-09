@@ -913,8 +913,8 @@ program** — which may seem odd at first.
 
 The execve(2) system call (also observed above) **does not return** on
 success.  It replaces the calling program by a new one.  Some of the
-execution context will be modified during that process, some will be
-left unchanged.  Details in the manual.
+execution context will be modified during that transition, some will
+be left unchanged.  Details in the manual.
 
 > Note: When programming C, there's a bunch of frontends to execve(2),
 > summarised in exec(3).
