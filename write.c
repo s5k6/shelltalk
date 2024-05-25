@@ -5,12 +5,12 @@
 
 int main(int argc, char **argv) {
 
+    if (argc < 2)
+        errx(1, "pass file descriptor as argument");
+
 
     /* Get file descriptor from first argument.  See strtol(3) for
        conversion. */
-
-    if (argc < 2)
-        errx(1, "pass file descriptor as argument");
 
     char *end = argv[1];
     int fd = (int)strtol(argv[1], &end, 10);

@@ -951,8 +951,8 @@ They have the shell's PID as PPID.
 Execute: Replace one program with another
 -----------------------------------------
 
-On Linux, when you execute a program, then **by replacing the running
-program** — which may seem odd at first.
+On Linux, when you execute a program, then **by replacing the program
+running in the current process** — which may seem odd at first.
 
 The execve(2) system call (also observed above) **does not return** on
 success.  It replaces the calling program by a new one.  Some of the
@@ -1107,9 +1107,9 @@ before printing the next prompt:
 
 
 
-FIXME talk about subshells introduced by `(…)`
+FIXME talk about subshells introduced by `$(…)`.
 
-FIXME talk about `jobs` and `wait` shell builtins
+FIXME talk about the `jobs` and `wait` shell builtins.
 
 
 Standard streams
@@ -1261,9 +1261,10 @@ descriptor from open(2).  But here, the shell needs to
 
 ### Make sure a file is opened with given file descriptor
 
-We cannot do this, but we *can* assign an open file descript**ion**
-(referenced by its file descriptor) to another file descriptor, using
-dup2(2) — [dup2.c](dup2.c):
+We cannot control the file descriptor returned by open, but we *can*
+assign an open file descript**ion** (referenced by its file
+descript**or**) to another file descriptor, using dup2(2) —
+[dup2.c](dup2.c):
 
     $ ./dup2
     knock knock
@@ -1275,9 +1276,9 @@ dup2(2) — [dup2.c](dup2.c):
 
 ### Open file descriptors survive execve(2)
 
-Open files are a property of the process, not the program.  By default
-(cf. `FD_CLOEXEC` in fcntl(2)), they remain open across a call to
-execve(2).
+Open files are a **property of the process**, not of the program.  By
+default (cf. `FD_CLOEXEC` in fcntl(2)), they remain open across a call
+to execve(2).
 
 Example [fdexec.c](fdexec.c):
 

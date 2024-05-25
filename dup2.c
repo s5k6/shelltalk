@@ -19,6 +19,7 @@ int main(void) {
 
     warnx("open(\"" FILENAME "\") returned %d", fd);  // writes to stderr
 
+
     // close original stdout 1, and make it an alias of fd
     if (dup2(fd, 1) < 0)
         err(1, "dup");
