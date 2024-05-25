@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# Information disclosure, taken from [1].  Should only print argument,
-# but passing `\*` leaks names of all files in working directory.
-
-echo Argument is $1
-
-# [1]: https://unix.stackexchange.com/questions/171346/security-implications-of-forgetting-to-quote-a-variable-in-bash-posix-shells

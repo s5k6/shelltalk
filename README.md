@@ -38,7 +38,7 @@ not checking for errors properly, *etc.* …).
 ⇒ Do not use the examples as basis for your own projects, but for
 experiments and to foster your understanding.  Do read the documentation!
 
-> There is no originality in the examples.  They are trivial and
+> I claim no originality in the examples.  They are trivial and
 > obvious applications of what everyone can find in the relevant
 > documents.
 
@@ -345,48 +345,52 @@ The shell's options `failglob` and `nullglob` control the shell's
 behaviour in case pattern matching fails.  This may be an important
 design choice when writing shell scripts.
 
-Print your default settings:
+Print your default settings, mine are:
 
     $ shopt failglob nullglob
     failglob        off
     nullglob        off
 
-If `failglob` is set, the program will not be called if the match
-fails:
+If `failglob` is off (unset), then `nullglob` decides whether a
+non-matching glob is passed to the program, or not:
+
+    $ shopt -u failglob nullglob   # switch both off
+    $ ./arg *.x
+    argv[0] = ./arg
+    argv[1] = *.x          # unexpanded glob passed to program
+
+    $ shopt -s nullglob    # enable nullglob
+    $ ./arg *.x
+    argv[0] = ./arg        # no arguments are created
+
+Hence, with `nullglob`, a failed match creates no arguments.
+
+However, if `failglob` is set, then the program will not be called
+with a failed match.  The setting of nullglob becomes irrelevant:
 
     $ shopt -s failglob    # set failglob
     $ ./arg *.x
     bash: no match: *.x    # `arg` is not even called
 
-Otherwise, `nullglob` decides whether a non-matching glob is passed to
-the program, or not:
-
-    $ shopt -u failglob nullglob
-    $ ./arg *.x
-    argv[0] = ./arg
-    argv[1] = *.x          # unexpanded glob passed to program
-
-    $ shopt -s nullglob
-    $ ./arg *.x
-    argv[0] = ./arg        # no arguments are created
-
 Settings by `shopt` persist until changed again, or termination of the
-shell.
+shell.  Modify your `~/.bashrc` to taste.
 
-  * In interactive shalls, I prefer to have `failglob` enabled by
-    default: If the glob fails, I'd rather think about what to really
-    pass to a program.  Modify your `~/.bashrc` to taste.
+In interactive shells, I prefer to have `failglob` enabled by default:
+If the glob fails, I'd rather think about what to really pass to a
+program.
 
-  * In a shell script, it may very well be adequate to deviate from
-    failing.  It really **depends on the program invoked**.  You can
-    change these options multiple times in a script, if req'd.
+In a shell script, it really depends on the situation.  It may very
+well be legitimate to have a failing glob create an empty list, or to
+yield an error.  You can change these options multiple times in a
+script, I tend to start with `failglob` enabled, and adapt mid-script
+if req'd.
 
 
 Quoting
 -------
 
 If spaces separate words, and globs are expanded to file names, then
-how can one pass these **meta characters** as part of a command line
+how can one pass these **metacharacters** as part of a command line
 argument?
 
 Now consider this:
@@ -441,7 +445,7 @@ The shell's special **metacharacters** are space, tab, and
     Note, that an unquoted backslash does not introduce ANSI C
     escape sequences.
 
-  * Single quotes `'·'` preserve the literal values of *all enclosed
+  * Single quotes `'…'` preserve the literal values of *all enclosed
     characters*, which is known as **strong quoting**.
 
         $ ./arg 'hello world'    # a quoted space does not separate words
@@ -456,7 +460,7 @@ The shell's special **metacharacters** are space, tab, and
         argv[0] = ./arg
         argv[1] = nothing \\ special
 
-  * Double quotes `"·"` preserve the literal values of *most* of the
+  * Double quotes `"…"` preserve the literal values of *most* of the
     enclosed characters.  That's why it's called **weak quoting**.
 
     Exceptions are `"`, `$`, `` ` ``, and the *now quoted* `\`.
@@ -468,18 +472,22 @@ The shell's special **metacharacters** are space, tab, and
     Above, `$` is special and expands the environment variable
     `HOME`, but the spaces are literal and do not split the argument.
 
-    The *quoted* backslash only quotes characters which are still
-    special in a weakly quoted context (plus, it removes a newline)
+    The *quoted backslash* behaves different from the *unquoted* one:
+    It only quotes characters which are still special in the weakly
+    quoted context (plus, it removes a newline), and is otherwise not
+    removed:
 
-        $ ./arg   \' \\   '\'   "\"" "\$x" "\\"   "\'"
+        $ ./arg   \n   "\n"   \'   "\'"   \\   "\\"   \$x   '$x'   "\$x"
         argv[0] = ./arg
-        argv[1] = '        # escaped single quote
-        argv[2] = \        # escaped backslash
-        argv[3] = \        # strongly quoted backslash
-        argv[4] = "        # weakly quoted escaped double quote
-        argv[5] = $x       # weakly quoted escaped dollar and an x
-        argv[6] = \        # weakly quoted escaped backslash
-        argv[7] = \'       # weakly quoted backslash and a single quote
+        argv[1] = n       # Non-special character preserved (kinda pointless).
+        argv[2] = \n      # Quoted backslash remains because n is not special.
+        argv[3] = '       # Made single quote literal.
+        argv[4] = \'      # Single quote not special in weakly quoted context.
+        argv[5] = \       # First backslash escapes second one…
+        argv[6] = \       #   …in unquoted and weakly quoted context.
+        argv[7] = $x      # Quote dollar sign in unquoted, …
+        argv[8] = $x      #   …strongly quoted, …
+        argv[9] = $x      #   …and weakly quoted context.
 
   * More exotic variations:
 
@@ -494,7 +502,7 @@ The shell's special **metacharacters** are space, tab, and
         ${HOME}
 
     And `$"…"` is supposed to invoke translation according to the
-    current locale.
+    current locale, but I've never seen this working.
 
 Confused?  There's a simple mental model to escaping, weak and strong
 quoting on the shell:
@@ -506,26 +514,31 @@ Think of backslash `\`, single quote `'` and double quote `"` as
 **quoting toggles** that switch different quoting modes on and off,
 with `\` affecting only the following character.
 
-Parsing your input left-to-right, the shell starts in unquoted mode,
-then:
+Parsing your input left-to-right, the shell **starts in unquoted
+mode**, then:
 
-  * An unquoted…
+  * In unquoted mode,
 
-      - …backslash `\` escapes the next character, or skips a
-        directly following newline,
+      - a backslash `\` only **escapes** the next character, or skips
+        a directly following newline,
 
-      - …single quote `'` switches on strong quoting,
+      - a single quote `'` switches to **strong quoting** mode,
 
-      - …double quote `"` switches on weak quoting.
+      - a double quote `"` switches to **weak quoting** mode.
 
-  * A strongly quoted single quote `'` ends strong quoting.
+  * In strongly quoted mode,
 
-  * A weakly quoted…
+       - a single quote `'` ends strong quoting, switching back to
+         **unquoted** mode,
 
-      - …double quote `"` ends weak quoting.
+  * In weakly quoted mode,
 
-      - …backslash `\` removes any special meaning from a following
-        `"`, `$`, `` ` ``, or `\`.
+      - a double quote `"` ends weak quoting, switching back to
+        **unquoted** mode,
+
+      - a backslash `\` removes any special meaning from a following
+        metacharacter (`"`, `$`, `` ` ``, `\`), or is used literally
+        if an ordinary character follows.
 
 This simplifies writing a parser to a pretty straight forward state
 machine, and also allows to **switch the quoting style** on the fly,
@@ -540,9 +553,9 @@ as needed:
 
   * A single quote with strongly quoted text:
 
-        $ ./arg 'it'\''s time'
+        $ ./arg 'now it'\''s time'
         argv[0] = ./arg
-        argv[1] = it's time
+        argv[1] = now it's time
 
   * An even less contrived example:
 
@@ -561,13 +574,101 @@ as needed:
 > the shell introduce quoting for further use, use `printf %q`, see
 > bash(1).
 
-**Question:** Recently, I've seen someone suggest
+
+### Better default configuration to encourage proper quoting
+
+Assume a lon-running task writing log files into a directory `./logs`.
+How to delete the old log files?  The approach of
 
     $ find ./logs -name *.log -mtime +30 -delete
 
-to delete old log files from `./logs`.  The command worked well for
-him when testing.  So, what's wrong? — It's a couple of things,
-cf. [solution2](solution2.md).
+seems reasonable, as find(1) says:
+
+    -name pattern
+           Base of file name (the path with the leading directories
+           removed) matches shell pattern pattern.
+
+This may even work on a test system, but still fail on a production
+system.
+
+Obviously, the unquoted `*.log` is the bug.  If the shell is set up
+wrong (which seems to be the default with many distributions), it may
+be difficult to notice the issue by testing.
+
+To play with this, create some test data
+
+    $ mkdir -p logs
+    $ touch -d "@$(date -d'32 days ago' +%s)" logs/{{1..3}.log,data1.dat}
+    $ touch -d "@$(date -d'22 days ago' +%s)" logs/{{4..6}.log,data2.dat}
+    $ ls -l logs
+    …
+
+Instead of deleting the old log files, let's just print them instead,
+so we can evaluate different scenarios:
+
+    $ find ./logs -name *.log -mtime +30
+    ./logs/3.log
+    ./logs/2.log
+    ./logs/1.log
+
+This is the expected output.  Do you see it too?  It depends on the
+settings of `failglob` and `nullglob`, ond (even worse!) on one more
+thing.  Care to take a guess?
+
+    $ shopt -u failglob nullglob
+    $ find ./logs -name *.log -mtime +30
+    ./logs/1.log
+    ./logs/2.log
+    ./logs/3.log
+
+Ok, the desired output, which the developer has seen during his test.
+It would work on any shell set up with `failglob` and `nullglob`
+disabled, if one more precondition is met.
+
+Let's enable `failglob`:
+
+    $ shopt -s failglob
+    $ find ./logs -name *.log -mtime +30
+    bash: no match: *.log
+
+What, no match?  So the successful execution is the result of bash
+“being smart” and not failing, but passing a glob it cannot resolve to
+the program.  In other words, it perversely **hinges on the occurrence
+and handling of an expected error**.
+
+    $ touch foo.log
+    $ find ./logs -name *.log -mtime +30   # no output
+
+The presence of any file matching `*.log` in the *current* working
+directory changes how `find` is called: Now the glob expands to
+`foo.log`, no such file exists in `./logs`, nothing is printed (and
+nothing would be deleted).  The setting of `nullglob` and `failglob`
+is not relevant, because the glob does not fail.  And if you have not
+seen any files listed for the commands above, then the non-occurrence
+of this error may be the reason why.
+
+By the way, find(1) knows its users too well =)
+
+    $ touch bar.log
+    $ find ./logs -name *.log -mtime +30
+    find: paths must precede expression: `foo.log'
+    find: possible unquoted pattern after predicate `-name'?
+
+Here, we have executed (after filename expansion)
+
+    find ./logs -name bar.log foo.log -mtime +30
+
+and find(1) is smart enought to smell the rat.
+
+**Summary:** The correct command invocation is with a quoted glob
+
+    $ find ./logs -name '*.log' -mtime +30 -delete
+
+and the mistake of forgetting to quote is more likely to be noticed
+when `shopt -s failglob` is set as default in `~/.bashrc`, because
+you'll get an error if the glob cannot be resolved, or the results
+printed are unlikely to be the expected ones.
+
 
 
 Seven kinds of expansion
@@ -629,79 +730,13 @@ variable (defaulting to `$' \t\n'`):
     argv[4] = background.c
 
 
-Always quote your variables
----------------------------
+Advice: Always quote your variables
+-----------------------------------
 
-The web is full of information on how missing quotes introduce
-trouble, particularly detailed is a [Stack Exchange
-post](https://unix.stackexchange.com/questions/171346), which was the
-source of the following examples
-
-
-### Information disclosure
-
-The script [bash/disclose](bash/disclose) should report its argument,
-and contains the line
-
-    echo Argument is $1
-
-This may leak the names of all files in the working directory, because
-the unquoted use of `$1` is subjected to pathname expansion after
-parameter expansion.
-
-    $ bash/disclose hello
-    Argument is hello
-
-    $ bash/disclose \*
-    Argument is arg arg.c background background.c bash closedup closedup.c conflict conflict.c crooked_env crooked_env.c …
-
-
-### Arbitrary code execution, via input
-
-The script [bash/nantucket](bash/nantucket) replaces the second word
-in each line of a limerick with the script's argument.
-
-    $ bash/nantucket FOO
-    There FOO was a man from Nantucket
-    Who FOO all his cash in a bucket.
-
-The key line in the script is this one
-
-    awk -v awkVar=$1 '{ $2 = awkVar; print }'
-
-where the unquoted command line argument `$1`, after expansion, is
-subject to word splitting potentially **passing more arguments** to
-awk(1).  Being able to execute code, awk(1) can be tricked to run a
-command:
-
-    $ ./nantucket 'x BEGIN{system("date")}'
-    Sun Jun 20 04:02:16 PM CEST 2021
-
-
-### Arbitrary code execution, via file
-
-The script [bash/classify](bash/classify)
-
-    $ bash/classify
-    …
-    Is file: Makefile
-    No file: media               # it's a directory
-    …
-
-The vulnerable lines in the script is
-
-    test -f $file
-
-Again, more arguments can be passed to test, yielding a wrong result.
-But worse, bash's `test` builtin can be asked to check for the
-existence of an array variable, which requires evaluation of the
-index:
-
-    $ touch 'x -o -v a[$(date>&2)]'
-    $ bash/classify
-    …
-    Sun Jun 20 04:08:14 PM CEST 2021     # executed `date`
-    …
+Unquoted use of shell variables (except for legitimate reasons) tend
+to cause trouble.  The web knows many examples, in the extreme
+[amounting to](https://unix.stackexchange.com/questions/171346)
+security implications like arbitrary code execution.
 
 
 ### Quoting alone may not suffice
@@ -741,7 +776,7 @@ FIXME move this to past execve
 Every Linux processes can access a per-process list of environment
 variables, cf. environ(7).
 
-  * By convention, these are key/value pairs, both entries being
+  * By convention, these are key/value pairs, entries being
     0-terminated strings.
 
   * Can be investigated in `/proc/$$/environ` (use a hexdump tool).
@@ -775,17 +810,25 @@ Shell variables are not environment variables!
   * All variables imported from the environment at startup are
     implicitly marked for export.
 
-  * The export property can be removed with `export -n`.
+  * A shell variable `X` can be exempt from being exported with
+    `export -n X`.
+
+> So can one modify the *environment* of a running process?
+>
+> Having sufficient privileges, of course one can.  But AFAIK there's
+> no Linux API to do that, so I'd expect it to be bad practice: A
+> running program is unlikely to expect changes to the environment
+> variables.
 
 
-Advice
-------
+Advice on scripting
+-------------------
 
   * Use available tools.  The shell is a **tool-combiner**.
 
     Learn sed(1), find(1), ssh(1), tar(1), ….
 
-  * Shell scripts do have **no suffix**.
+  * Shell scripts do have **no suffix** in their filename.
 
     Using a suffix like `.sh` would be the surfacing of an
     implementation detail.  User experience degrades.  On replacing
