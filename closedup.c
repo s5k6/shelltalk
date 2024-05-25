@@ -2,14 +2,12 @@
 #include <err.h>
 #include <unistd.h>
 
-#define FILENAME "closedup.out"
-
 
 int main(int argc, char **argv) {
 
     (void)argc; (void)argv;
 
-    int fd = open(FILENAME, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    int fd = open("closedup.out", O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0)
         err(1, "open");
 

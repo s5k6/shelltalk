@@ -2,16 +2,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define FILENAME "fdfork.out"
-
 
 int main(void) {
 
-    warnx("Writing to file: " FILENAME);
+    warnx("Writing to file: " "fdfork.out");
 
 
     // Open a file for writing
-    int fd = open(FILENAME, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    int fd = open("fdfork.out", O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0)
         err(1, "open");
 

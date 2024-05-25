@@ -2,9 +2,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define FILENAME "redirect.out"
-
 extern char **environ;
+
 
 int main(int argc, char **argv) {
 
@@ -18,7 +17,7 @@ int main(int argc, char **argv) {
     if (pid == 0) {
 
         // open file to write to
-        int fd = open(FILENAME, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        int fd = open("redirect.out", O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0)
             err(1, "open");
 
