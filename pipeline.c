@@ -19,7 +19,6 @@ int main(int argc, char **argv) {
     pid_t pid;
 
 
-
     /* Fork a child process for the writer. */
 
     pid = fork();
@@ -28,18 +27,20 @@ int main(int argc, char **argv) {
 
     if (pid == 0) { // this is the child
 
-        dup2(pipefd[1], 1);  // use write end for stdout
+        dup2(pipefd[1], 1);  // set FD 1 to write end of pipe, replacing stdout
 
-        close(pipefd[0]);  // close unused descriptors
+        close(pipefd[0]);  // close unused descriptORS
         close(pipefd[1]);
 
-        execlp(argv[1], argv[1], (char *)NULL);  // replace by writer
+        execlp(argv[1], argv[1], (char *)NULL);  // replace by writer program
         err(1, "exec %s", argv[1]);
 
     }
 
-    warnx("%d runs %s", pid, argv[1]);
 
+    /* this is the parent */
+
+    warnx("%d runs %s", pid, argv[1]);
 
 
     /* Fork a child process for the reader. */
@@ -50,26 +51,27 @@ int main(int argc, char **argv) {
 
     if (pid == 0) { // this is the child
 
-        dup2(pipefd[0], 0);  // use read end for stdin
+        dup2(pipefd[0], 0);  // det FD 0 to read end of pipe, replacing stdin
 
-        close(pipefd[0]);  // close unused descriptors
+        close(pipefd[0]);  // close unused descriptORS
         close(pipefd[1]);
 
-        execlp(argv[2], argv[2], (char *)NULL);  // replace by reader
+        execlp(argv[2], argv[2], (char *)NULL);  // replace by reader program
         err(1, "exec %s", argv[2]);
 
     }
 
-    warnx("%d runs %s", pid, argv[2]);
-
-
 
     /* this is the parent */
+
+    warnx("%d runs %s", pid, argv[2]);
 
     close(pipefd[0]);  // close unused descriptors
     close(pipefd[1]);
 
-    // wait for children, get exit status
+
+    /* wait for children, get exit status */
+
     int status;
     while ((pid = wait(&status)) != -1) {
         if (WIFEXITED(status))

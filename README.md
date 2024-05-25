@@ -1366,11 +1366,11 @@ Example [fdfork.c](fdfork.c):
 Note: Both processes share the write offset in the file, which is part
 of the open file description.
 
-Optional: Demonstrate a race condition by repeating each write 100
-times.
+Optional: Demonstrate correct interleaved writing by repeating each
+write 100 times.
 
-> Historical note: This was not the case in Linux before 3.14, see the
-> “Bugs” sections in read(2) and write(2).
+> Historical note: This was not handled correctly by Linux before
+> 3.14, see the “Bugs” sections in read(2) and write(2).
 
 
 ### The flags passed to open(2)
@@ -1566,27 +1566,30 @@ writing, [pipeline.c](pipeline.c)…
 
 …as the shell does:
 
-    $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c 'date | rev'
-    1202 TSEC MP 63:42:20 72 nuJ nuS
+    $ strace -olog -etrace=pipe2,clone,execve,dup2,read,write -f bash -c 'date | rev'
+    4202 TSEC MP 43:01:11 52 yaM taS
 
-    $ cat log
+    $ cat log     # I've simplified the output
     …
-    6910  pipe([3, 4])                      = 0
-    6910  clone(…)        = 6911
-    6910  clone(…)        = 6912
-    6911  dup2(4, 1)                        = 1
-    6912  dup2(3, 0)                        = 0
-    6911  execve("/usr/bin/date", ["date"], …)          = 0
-    6912  execve("/usr/bin/rev", ["rev"], …)          = 0
+    51877 pipe2([3, 4], 0) = 0
+    51877 clone(...) = 51878
+    51877 clone(...) = 51879
+    51878 dup2(4, 1) = 1
+    51878 execve("/usr/bin/date", ["date"], ...) = 0
+    51879 dup2(3, 0) = 0
+    51879 execve("/usr/bin/rev", ["rev"], ...) = 0
     …
-    6911  write(1, "Sun Jun 27 02:24:36 PM CEST 2021"..., 33) = 33
+    51878 write(1, "Sat May 25 11:10:34 PM CEST 2024"..., 33) = 33
+    51878 +++ exited with 0 +++
+    51879 read(0, "Sat May 25 11:10:34 PM CEST 2024"..., 4096) = 33
+    51879 write(1, "4202 TSEC MP 43:01:11 52 yaM taS"..., 33) = 33
+    51879 read(0, "", 4096)                 = 0
+    51879 +++ exited with 0 +++
     …
-    6912  read(0, "Sun Jun 27 02:24:36 PM CEST 2021"..., 4096) = 33
-    6912  write(1, "1202 TSEC MP 63:", 16)  = 16
-    6912  write(1, "42:20 72 nuJ nuS", 16)  = 16
-    6912  write(1, "\n", 1)                 = 1
-    6912  read(0, "", 4096)                 = 0
-    …
+
+> Note, that on older systems strace(1) may report `pipe` rather than
+> `pipe2` (and requires the filter set up accordingly).  As usual, I
+> keep talking about `pipe` for simplicity.
 
 
 ### FIFOs
@@ -1625,12 +1628,12 @@ documents**:
     $ rev <<<'Amore, Roma.'
     .amoR ,eromA
 
-    $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c "rev <<<'Amore, Roma.'"
+    $ strace -olog -etrace=pipe2,clone,execve,dup2,read,write -f bash -c "rev <<<'Amore, Roma.'"
 
 Have a look at the `log` file: The child forked for rev(1) creates a
 pipe, and writes to it before replacing itself with the rev(1)
-program.  The process talks to itself, obviously limited by pipe
-capacity.
+program.  The process talks to itself, replacing the program it runs
+in between.
 
 
 ### *stdout* to text
@@ -1642,18 +1645,18 @@ output written by `command` to its *stdout*.
     argv[0] = ./arg
     argv[1] = Sun Jun 27 03:54:05 PM CEST 2021
 
-    $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c './arg "$(date)"'
+    $ strace -olog -etrace=pipe2,clone,execve,dup2,read,write -f bash -c './arg "$(date)"'
 
 *Between the parenthesis* of `$(…)`, write a command as usual.  The
-quoting starts out as **unquoted** wrt. the command, which is exactly
-what you'd want to have.
+inside quoting starts out in **unquoted mode** (cf. above) wrt. the
+command, which is exactly what you'd want to have.
 
 But note, that the output of the command undergoes word splitting, so
 **proper quoting** of the command substitution is required.
 
-**Do not use** the historical syntax, `` `…` ``.  It is
-considered deprecated, does not nest as nicely, is harder to read, and
-treats some characters differently.  But remember to **quote** all
+**Do not use** the historical syntax, `` `…` ``.  Some consider it
+deprecated, it does not nest as nicely, is harder to read, and treats
+some characters differently.  But remember to **quote** all
 occurrences of backticks you want to use, e.g., in printed messages,
 lest they invoke a command.
 
@@ -1661,8 +1664,9 @@ lest they invoke a command.
 ### *stdout* to named file
 
 Also, bash(1) **process substitution** uses pipes, supported on
-systems, where a process has its open file descriptors listed under
-`/proc/self/fd/` (or similar, use namei(1) to find out):
+systems where a process has its open file descriptors listed under
+`/proc/self/fd/` (or similar, use realpath(1) or namei(1) to find
+out):
 
     $ rev <(date)
     1202 TSEC MP 12:40:30 72 nuJ nuS
@@ -1675,16 +1679,31 @@ connected to a pipe providing *stdout* of the enclosed command.
 
 Again,
 
-    $ strace -olog -etrace=pipe,clone,execve,dup2,read,write -f bash -c 'rev <(date)'
+    $ strace -olog -etrace=openat,pipe2,clone,execve,dup2,read,write -f bash -c 'rev <(date)'
 
 reveals how a pipe's read end becomes the argument of rev(1):
 
+    52454 execve("/usr/bin/bash", ["bash", "-c", "rev <(date)"], 0x7fffa4f7ac68 /* 70 vars */) = 0
     …
-    8378  pipe([3, 4])                      = 0
-    8378  dup2(3, 63)                       = 63
+    52454 pipe2([3, 4], 0)                  = 0
+    52454 dup2(3, 63)                       = 63
+    52454 clone(…)                          = 52455
+    52455 dup2(4, 1)                        = 1
+    52454 execve("/usr/bin/rev", ["rev", "/dev/fd/63"], 0x584a51aec850 /* 70 vars */) = 0
     …
-    8378  execve("/usr/bin/rev", ["rev", "/dev/fd/63"], 0x56458d99edf0 /* 42 vars */) = 0
+    52455 execve("/usr/bin/date", ["date"], 0x584a51aec850 /* 70 vars */)             = 0
     …
+    52454 openat(AT_FDCWD, "/dev/fd/63", O_RDONLY) = 3
+    52454 read(3,  <unfinished ...>
+    …
+    52455 write(1, "Sat May 25 11:41:42 PM CEST 2024"..., 33) = 33
+    52454 <... read resumed>"Sat May 25 11:41:42 PM CEST 2024"..., 4096) = 33
+    52454 write(1, "4202 TSEC MP 24:14:11 52 yaM taS"..., 33) = 33
+    …
+
+Note, that the “file” `/dev/fd/63` resides in a virtual file system,
+used by the kernel to expose information to a process.  In this case,
+a list of its file descriptors.
 
 
 Subshells

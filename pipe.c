@@ -18,10 +18,12 @@ int main(void) {
     if (pipe(pipefd) != 0)
         err(1, "pipe failed");
 
+
     /* Fork a child process. */
     pid_t pid = fork();
     if (pid < 0)
         err(1, "fork");
+
 
     if (pid == 0) { // this is the child
 
